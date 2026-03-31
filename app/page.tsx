@@ -27,14 +27,23 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasResults = results.length > 0 && !isLoading;
+
   const handleImageSelect = (file: File, url: string) => {
     setSelectedFile(file);
     setPreviewUrl(url);
     setPreviewDataUrl(null);
     setResults([]);
     setError(null);
-    // blob: URL → data: URL 변환 (html-to-image iOS Safari 캡처 호환)
     blobUrlToDataUrl(url).then(setPreviewDataUrl).catch(() => {});
+  };
+
+  const handleReset = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setPreviewDataUrl(null);
+    setResults([]);
+    setError(null);
   };
 
   const handleAnalyze = async () => {
@@ -75,28 +84,43 @@ export default function Home() {
         <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
           나의 쌍둥이 연예인
         </h1>
-        <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
-          사진을 올리면 AI가 닮은 연예인을 찾아드려요
-        </p>
-      </div>
 
-      {/* 업로드 */}
-      <ImageUpload
-        onImageSelect={handleImageSelect}
-        previewUrl={previewUrl}
-        isLoading={isLoading}
-        onAnalyze={handleAnalyze}
-      />
+        {/* 결과 없을 때: 설명 + 업로드 / 결과 있을 때: 다시하기 버튼 */}
+        {!hasResults ? (
+          <>
+            <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+              사진을 올리면 AI가 닮은 연예인을 찾아드려요
+            </p>
+            <div className="mt-8">
+              <ImageUpload
+                onImageSelect={handleImageSelect}
+                previewUrl={previewUrl}
+                isLoading={isLoading}
+                onAnalyze={handleAnalyze}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="mt-6">
+            <button
+              onClick={handleReset}
+              className="px-6 py-2.5 border border-gray-200 rounded-full text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              다시하기
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* 에러 */}
       {error && !isLoading && (
-        <div className="mt-6 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
+        <div className="mt-2 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
           {error}
         </div>
       )}
 
       {/* 결과 */}
-      {results.length > 0 && !isLoading && (
+      {hasResults && (
         <CelebResult celebrities={results} previewDataUrl={previewDataUrl} />
       )}
     </main>

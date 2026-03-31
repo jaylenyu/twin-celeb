@@ -21,26 +21,32 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
   const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  // 사진이 없을 때도 캡처 트리거하기 위한 플래그
+  const [imageReady, setImageReady] = useState(!previewDataUrl);
 
-  // 결과 표시 후 이미지 미리 생성 (iOS Safari gesture timeout 대응)
+  // previewDataUrl이 바뀌면 imageReady 초기화
   useEffect(() => {
+    setImageReady(!previewDataUrl);
     setShareFile(null);
-    setShareError(false);
+  }, [previewDataUrl]);
+
+  // 이미지가 준비된 후 캡처 (onLoad 또는 사진 없는 경우 즉시)
+  useEffect(() => {
+    if (!imageReady || !cardRef.current) return;
 
     const timer = setTimeout(async () => {
-      if (!cardRef.current) return;
       try {
-        const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2 });
+        const dataUrl = await toPng(cardRef.current!, { cacheBust: true, pixelRatio: 2 });
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         setShareFile(new File([blob], 'twin-celeb-result.png', { type: 'image/png' }));
       } catch {
-        // 생성 실패 → 공유 버튼 클릭 시 URL만 공유로 fallback
+        // 캡처 실패 — 공유 버튼 클릭 시 URL 공유로 fallback
       }
-    }, 400);
+    }, 100);
 
     return () => clearTimeout(timer);
-  }, [celebrities, previewDataUrl]);
+  }, [imageReady, celebrities]);
 
   const handleShare = async () => {
     setSharing(true);
@@ -48,13 +54,10 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
 
     try {
       if (shareFile && navigator.canShare?.({ files: [shareFile] })) {
-        // 이미지 공유 (iOS Safari: 미리 생성된 파일로 즉시 호출)
         await navigator.share({ files: [shareFile] });
       } else if (navigator.share) {
-        // 이미지 공유 불가 → URL 공유
         await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
       } else if (shareFile) {
-        // Web Share API 없음 → 다운로드
         const url = URL.createObjectURL(shareFile);
         const link = document.createElement('a');
         link.href = url;
@@ -71,16 +74,18 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
   };
 
   return (
-    <div className="w-full max-w-sm mt-10">
+    <div className="w-full max-w-sm mt-4">
       {/* 캡처 영역 */}
       <div ref={cardRef} className="bg-white p-5 rounded-xl">
         <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-5">Result</p>
 
+        {/* 업로드한 사진 — 로드 완료 후 캡처 트리거 */}
         {previewDataUrl && (
           <div className="flex justify-center mb-5">
             <img
               src={previewDataUrl}
               alt="내 사진"
+              onLoad={() => setImageReady(true)}
               className="w-24 h-24 object-cover rounded-full border border-gray-100"
             />
           </div>
