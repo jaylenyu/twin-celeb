@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import confetti from 'canvas-confetti';
 import ImageUpload from '@/components/ImageUpload';
 import CelebResult from '@/components/CelebResult';
 import { Celebrity } from '@/types';
@@ -19,6 +20,21 @@ function blobUrlToDataUrl(blobUrl: string): Promise<string> {
   });
 }
 
+function fireConfetti() {
+  const burst = (x: number) =>
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { x, y: 0.55 },
+      colors: ['#a3a3a3', '#d4d4d4', '#404040', '#737373', '#f5f5f5'],
+      scalar: 0.9,
+      gravity: 1.2,
+    });
+
+  burst(0.35);
+  setTimeout(() => burst(0.65), 150);
+}
+
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -26,8 +42,17 @@ export default function Home() {
   const [results, setResults] = useState<Celebrity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevHasResults = useRef(false);
 
   const hasResults = results.length > 0 && !isLoading;
+
+  // 결과가 처음 나타날 때 confetti 실행
+  useEffect(() => {
+    if (hasResults && !prevHasResults.current) {
+      fireConfetti();
+    }
+    prevHasResults.current = hasResults;
+  }, [hasResults]);
 
   const handleImageSelect = (file: File, url: string) => {
     setSelectedFile(file);
@@ -85,7 +110,6 @@ export default function Home() {
           나의 쌍둥이 연예인
         </h1>
 
-        {/* 결과 없을 때: 설명 + 업로드 / 결과 있을 때: 다시하기 버튼 */}
         {!hasResults ? (
           <>
             <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
