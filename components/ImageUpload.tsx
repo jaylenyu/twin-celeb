@@ -35,7 +35,6 @@ async function compressToUnder5MB(file: File): Promise<File> {
       const canvas = document.createElement("canvas");
       let { width, height } = img;
 
-      // 긴 변 기준 2048px로 축소
       const MAX_DIM = 2048;
       if (width > MAX_DIM || height > MAX_DIM) {
         const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
@@ -80,6 +79,8 @@ export default function ImageUpload({
   const isMobile = useIsMobile();
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
+  const disabled = isLoading || compressing;
+
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       setError(null);
@@ -119,7 +120,7 @@ export default function ImageUpload({
     onDrop,
     accept: ACCEPTED_TYPES,
     multiple: false,
-    // maxSize 제거 — 압축으로 처리
+    disabled,
   });
 
   const uploadLabel = compressing ? "압축 중..." : previewUrl ? "다시 선택" : "사진 선택";
@@ -134,6 +135,7 @@ export default function ImageUpload({
           accept="image/jpeg,image/png,image/webp"
           className="hidden"
           onChange={handleMobileChange}
+          disabled={disabled}
         />
 
         <div
@@ -152,9 +154,9 @@ export default function ImageUpload({
           )}
           <button
             type="button"
-            disabled={compressing}
+            disabled={disabled}
             onClick={() => mobileInputRef.current?.click()}
-            className="mt-4 px-5 py-2 text-sm border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="mt-4 px-5 py-2 text-sm border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {uploadLabel}
           </button>
@@ -165,7 +167,7 @@ export default function ImageUpload({
         {previewUrl && (
           <button
             onClick={onAnalyze}
-            disabled={isLoading || compressing}
+            disabled={disabled}
             className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
           >
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
@@ -180,10 +182,12 @@ export default function ImageUpload({
     <div className="flex flex-col items-center gap-5 w-full max-w-sm">
       <div
         {...getRootProps()}
-        className={`w-full border border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-          isDragActive
-            ? "border-gray-400 bg-gray-50"
-            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+        className={`w-full border border-dashed rounded-xl p-8 text-center transition-colors ${
+          disabled
+            ? "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+            : isDragActive
+            ? "border-gray-400 bg-gray-50 cursor-pointer"
+            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
         }`}
       >
         <input {...getInputProps()} />
@@ -195,7 +199,9 @@ export default function ImageUpload({
               alt="업로드된 사진"
               className="w-40 h-40 object-cover rounded-lg"
             />
-            <p className="text-xs text-gray-400">클릭하거나 드래그해서 변경</p>
+            {!disabled && (
+              <p className="text-xs text-gray-400">클릭하거나 드래그해서 변경</p>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
@@ -225,7 +231,7 @@ export default function ImageUpload({
       {previewUrl && (
         <button
           onClick={onAnalyze}
-          disabled={isLoading || compressing}
+          disabled={disabled}
           className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
         >
           {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
