@@ -51,14 +51,15 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 py-12">
+    <main className="min-h-screen flex flex-col items-center px-6 py-16 bg-white">
       {/* 헤더 */}
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-          쌍둥이 연예인 찾기
+      <div className="text-center mb-12">
+        <p className="text-xs tracking-[0.2em] text-gray-400 uppercase mb-3">AI Celebrity Match</p>
+        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
+          나의 쌍둥이 연예인
         </h1>
-        <p className="mt-3 text-gray-500 text-base max-w-sm mx-auto">
-          사진을 업로드하면 AI가 닮은 한국/할리우드 연예인을 찾아드려요
+        <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+          사진을 올리면 AI가 닮은 연예인을 찾아드려요
         </p>
       </div>
 
@@ -75,7 +76,7 @@ export default function Home() {
 
       {/* 에러 */}
       {error && !isLoading && (
-        <div className="mt-6 px-5 py-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm max-w-md w-full text-center">
+        <div className="mt-6 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
           {error}
         </div>
       )}
