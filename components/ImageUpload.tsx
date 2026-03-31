@@ -168,8 +168,14 @@ export default function ImageUpload({
           <button
             onClick={onAnalyze}
             disabled={disabled}
-            className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
+            className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
           >
+            {isLoading && (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
           </button>
         )}
@@ -232,8 +238,14 @@ export default function ImageUpload({
         <button
           onClick={onAnalyze}
           disabled={disabled}
-          className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
+          className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
         >
+          {isLoading && (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          )}
           {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
         </button>
       )}

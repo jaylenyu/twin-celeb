@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import ImageUpload from '@/components/ImageUpload';
 import CelebResult from '@/components/CelebResult';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { Celebrity } from '@/types';
 
 export default function Home() {
@@ -71,9 +70,6 @@ export default function Home() {
         onAnalyze={handleAnalyze}
       />
 
-      {/* 로딩 */}
-      {isLoading && <LoadingSpinner />}
-
       {/* 에러 */}
       {error && !isLoading && (
         <div className="mt-6 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
@@ -83,7 +79,7 @@ export default function Home() {
 
       {/* 결과 */}
       {results.length > 0 && !isLoading && (
-        <CelebResult celebrities={results} />
+        <CelebResult celebrities={results} previewUrl={previewUrl} />
       )}
     </main>
   );

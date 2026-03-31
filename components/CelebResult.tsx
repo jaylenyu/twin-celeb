@@ -6,6 +6,7 @@ import { Celebrity } from '@/types';
 
 interface CelebResultProps {
   celebrities: Celebrity[];
+  previewUrl: string | null;
 }
 
 const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
@@ -13,7 +14,9 @@ const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
   Hollywood: '할리우드',
 };
 
-export default function CelebResult({ celebrities }: CelebResultProps) {
+const SITE_URL = 'https://twin-celeb.vercel.app';
+
+export default function CelebResult({ celebrities, previewUrl }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -29,7 +32,10 @@ export default function CelebResult({ celebrities }: CelebResultProps) {
       const file = new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
+        await navigator.share({
+          files: [file],
+          url: SITE_URL,
+        });
       } else {
         // 공유 미지원 → 이미지 다운로드
         const link = document.createElement('a');
@@ -48,7 +54,18 @@ export default function CelebResult({ celebrities }: CelebResultProps) {
     <div className="w-full max-w-sm mt-10">
       {/* 캡처 영역 */}
       <div ref={cardRef} className="bg-white p-5 rounded-xl">
-        <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-6">Result</p>
+        <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-5">Result</p>
+
+        {/* 업로드한 사진 */}
+        {previewUrl && (
+          <div className="flex justify-center mb-5">
+            <img
+              src={previewUrl}
+              alt="내 사진"
+              className="w-24 h-24 object-cover rounded-full border border-gray-100"
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           {celebrities.map((celeb, idx) => (
@@ -97,7 +114,7 @@ export default function CelebResult({ celebrities }: CelebResultProps) {
         </div>
 
         {/* 워터마크 */}
-        <p className="text-center text-xs text-gray-300 mt-5">twin-celeb.vercel.app</p>
+        <p className="text-center text-xs text-gray-300 mt-5">{SITE_URL}</p>
       </div>
 
       {/* 공유 버튼 (캡처 영역 밖) */}
