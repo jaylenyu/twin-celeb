@@ -22,6 +22,53 @@ function useIsMobile() {
   return isMobile;
 }
 
+async function compressToUnder5MB(file: File): Promise<File> {
+  if (file.size <= MAX_SIZE) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+
+      // 긴 변 기준 2048px로 축소
+      const MAX_DIM = 2048;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return; }
+            if (blob.size <= MAX_SIZE || quality <= 0.1) {
+              resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+            } else {
+              tryCompress(Math.round((quality - 0.1) * 10) / 10);
+            }
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+
+      tryCompress(0.9);
+    };
+
+    img.src = url;
+  });
+}
+
 export default function ImageUpload({
   onImageSelect,
   previewUrl,
@@ -29,11 +76,12 @@ export default function ImageUpload({
   onAnalyze,
 }: ImageUploadProps) {
   const [error, setError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const isMobile = useIsMobile();
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
-    (files: FileList | File[]) => {
+    async (files: FileList | File[]) => {
       setError(null);
       const file = files[0];
       if (!file) return;
@@ -41,11 +89,12 @@ export default function ImageUpload({
         setError("JPG, PNG, WEBP 형식만 지원합니다.");
         return;
       }
-      if (file.size > MAX_SIZE) {
-        setError("파일 크기는 5MB 이하여야 합니다.");
-        return;
-      }
-      onImageSelect(file, URL.createObjectURL(file));
+
+      setCompressing(file.size > MAX_SIZE);
+      const compressed = await compressToUnder5MB(file);
+      setCompressing(false);
+
+      onImageSelect(compressed, URL.createObjectURL(compressed));
     },
     [onImageSelect],
   );
@@ -58,12 +107,7 @@ export default function ImageUpload({
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       setError(null);
       if (rejectedFiles.length > 0) {
-        const err = rejectedFiles[0].errors[0];
-        setError(
-          err.message.includes("size")
-            ? "파일 크기는 5MB 이하여야 합니다."
-            : "JPG, PNG, WEBP 형식만 지원합니다.",
-        );
+        setError("JPG, PNG, WEBP 형식만 지원합니다.");
         return;
       }
       if (acceptedFiles[0]) handleFiles(acceptedFiles);
@@ -74,9 +118,11 @@ export default function ImageUpload({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
-    maxSize: MAX_SIZE,
     multiple: false,
+    // maxSize 제거 — 압축으로 처리
   });
+
+  const uploadLabel = compressing ? "압축 중..." : previewUrl ? "다시 선택" : "사진 선택";
 
   // ── 모바일 UI ───────────────────────────────────────────
   if (isMobile) {
@@ -102,14 +148,15 @@ export default function ImageUpload({
               className="w-40 h-40 object-cover rounded-lg mx-auto"
             />
           ) : (
-            <p className="text-sm text-gray-400 py-4">JPG, PNG, WEBP · 최대 5MB</p>
+            <p className="text-sm text-gray-400 py-4">JPG, PNG, WEBP · 용량 제한 없음</p>
           )}
           <button
             type="button"
+            disabled={compressing}
             onClick={() => mobileInputRef.current?.click()}
-            className="mt-4 px-5 py-2 text-sm border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 transition-colors"
+            className="mt-4 px-5 py-2 text-sm border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
-            {previewUrl ? "다시 선택" : "사진 선택"}
+            {uploadLabel}
           </button>
         </div>
 
@@ -118,7 +165,7 @@ export default function ImageUpload({
         {previewUrl && (
           <button
             onClick={onAnalyze}
-            disabled={isLoading}
+            disabled={isLoading || compressing}
             className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
           >
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
@@ -163,18 +210,22 @@ export default function ImageUpload({
               <p className="text-sm text-gray-600">
                 {isDragActive ? "여기에 놓으세요" : "드래그하거나 클릭해서 업로드"}
               </p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · 최대 5MB</p>
+              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · 용량 제한 없음</p>
             </div>
           </div>
         )}
       </div>
+
+      {compressing && (
+        <p className="text-xs text-gray-400">이미지 압축 중...</p>
+      )}
 
       {error && <p className="text-sm text-gray-500">{error}</p>}
 
       {previewUrl && (
         <button
           onClick={onAnalyze}
-          disabled={isLoading}
+          disabled={isLoading || compressing}
           className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors"
         >
           {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
