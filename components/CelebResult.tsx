@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 import { Celebrity } from '@/types';
 
@@ -18,33 +18,75 @@ const SITE_URL = 'https://twin-celeb.vercel.app';
 
 export default function CelebResult({ celebrities, previewUrl }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
 
-  const handleShare = async () => {
+  // 결과가 표시되자마자 이미지 미리 생성 (iOS Safari 유저 제스처 타임아웃 대응)
+  useEffect(() => {
     if (!cardRef.current) return;
+
+    const generate = async () => {
+      try {
+        const dataUrl = await toPng(cardRef.current!, { cacheBust: true, pixelRatio: 2 });
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        setShareFile(new File([blob], 'twin-celeb-result.png', { type: 'image/png' }));
+      } catch {
+        // 생성 실패 시 shareFile은 null 유지 → 공유 버튼 클릭 시 재시도
+      }
+    };
+
+    // 렌더링 완료 후 생성
+    const timer = setTimeout(generate, 300);
+    return () => clearTimeout(timer);
+  }, [celebrities, previewUrl]);
+
+  const handleShare = async () => {
     setSharing(true);
 
     try {
-      const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2 });
+      // 미리 생성된 파일 사용, 없으면 즉석 생성
+      let file = shareFile;
+      if (!file && cardRef.current) {
+        const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2 });
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        file = new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
+      }
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
+      if (!file) return;
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          url: SITE_URL,
-        });
+        // 이미지 + URL 함께 공유 시도, 실패하면 이미지만
+        try {
+          await navigator.share({ files: [file], url: SITE_URL });
+        } catch (e) {
+          if (e instanceof Error && e.name === 'AbortError') return;
+          await navigator.share({ files: [file] });
+        }
+      } else if (navigator.share) {
+        await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
       } else {
-        // 공유 미지원 → 이미지 다운로드
+        // 최종 fallback: 이미지 다운로드
+        const url = URL.createObjectURL(file);
         const link = document.createElement('a');
-        link.href = dataUrl;
+        link.href = url;
         link.download = 'twin-celeb-result.png';
         link.click();
+        URL.revokeObjectURL(url);
       }
-    } catch {
-      // 사용자가 취소한 경우 무시
+    } catch (e) {
+      if (e instanceof Error && e.name !== 'AbortError') {
+        // 공유 실패 시 다운로드로 fallback
+        if (shareFile) {
+          const url = URL.createObjectURL(shareFile);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'twin-celeb-result.png';
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+      }
     } finally {
       setSharing(false);
     }
