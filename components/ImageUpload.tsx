@@ -205,9 +205,7 @@ export default function ImageUpload({
               alt="업로드된 사진"
               className="w-40 h-40 object-cover rounded-lg"
             />
-            {!disabled && (
-              <p className="text-xs text-gray-400">클릭하거나 드래그해서 변경</p>
-            )}
+            <p className={`text-xs text-gray-400 ${disabled ? "invisible" : ""}`}>클릭하거나 드래그해서 변경</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
