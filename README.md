@@ -1,27 +1,32 @@
-# Twin Celeb — 나의 쌍둥이 연예인 찾기
+# Twin Celeb
 
-사진을 올리면 AI가 당신과 분위기가 닮은 한국/할리우드 연예인을 찾아드립니다.
+사진을 올리면 AI가 분위기가 닮은 한국/할리우드 연예인을 찾아드립니다.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8)
-![Claude](https://img.shields.io/badge/Claude-claude--sonnet--4--6-orange)
+![Claude](https://img.shields.io/badge/Claude-Sonnet_4.6-d97706)
+![Vercel](https://img.shields.io/badge/Vercel-Deployed-black)
+
+---
 
 ## 기능
 
-- 사진 업로드 (드래그 앤 드롭 / 파일 선택)
-- Claude Vision API로 분위기 분석
-- 한국 연예인 + 할리우드 스타 매칭 (최소 각 1명)
-- 유사도 퍼센트 및 닮은 이유 제공
+- **분위기 기반 매칭** — 외모 특징이 아닌 전체적인 인상과 분위기로 매칭
+- **이미지 업로드** — 드래그 앤 드롭 (데스크톱) / 카메라·앨범 선택 (모바일)
+- **자동 압축** — 용량 제한 없음, 5MB 초과 시 자동 압축
+- **한국 + 할리우드** — 최소 각 1명씩 총 3명 결과 제공
+- **유사도 및 이유** — 닮음 퍼센트와 분위기 설명 제공
+- **결과 공유** — 업로드 사진 포함 이미지로 친구에게 공유
 
 ## 기술 스택
 
-| 항목 | 사용 기술 |
-|------|-----------|
+| | |
+|---|---|
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4 |
-| AI | Anthropic Claude claude-sonnet-4-6 |
+| AI | Anthropic Claude Sonnet 4.6 (Vision) |
 | Deploy | Vercel |
 
 ## 로컬 실행
@@ -30,7 +35,7 @@
 pnpm install
 ```
 
-`.env.local` 파일 생성:
+`.env.local` 생성:
 
 ```
 ANTHROPIC_API_KEY=your_api_key_here
@@ -38,27 +43,27 @@ ANTHROPIC_API_KEY=your_api_key_here
 
 ```bash
 pnpm dev
+# http://localhost:3000
 ```
 
-[http://localhost:3000](http://localhost:3000) 에서 확인
-
-## 파일 구조
+## 프로젝트 구조
 
 ```
 app/
-├── api/find-celeb/route.ts   # Claude API 연동 엔드포인트
+├── api/find-celeb/route.ts   # 이미지 수신 및 Claude API 호출
 ├── page.tsx                  # 메인 페이지
 └── layout.tsx
 components/
-├── ImageUpload.tsx            # 이미지 업로드 UI
-├── CelebResult.tsx            # 결과 표시
-└── LoadingSpinner.tsx
+├── ImageUpload.tsx           # 업로드 UI (압축 포함)
+└── CelebResult.tsx           # 결과 카드 및 공유 기능
 lib/
-└── claude.ts                  # Claude SDK 래퍼
+└── claude.ts                 # Claude Vision API 연동
+types/
+└── index.ts                  # Celebrity, FindCelebResponse 타입
 ```
 
-## 제약 사항
+## 환경 변수
 
-- 지원 형식: JPEG, PNG, WEBP
-- 최대 파일 크기: 5MB
-- 인물이 포함된 사진만 분석 가능
+| 변수 | 설명 |
+|------|------|
+| `ANTHROPIC_API_KEY` | Anthropic API 키 ([발급](https://console.anthropic.com)) |
