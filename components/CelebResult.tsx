@@ -15,38 +15,106 @@ const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
 };
 
 const SITE_URL = 'https://twin-celeb.vercel.app';
+const PIXEL_RATIO = 2;
+
+async function buildShareImage(
+  cardEl: HTMLDivElement,
+  photoDataUrl: string | null,
+): Promise<File> {
+  const photoEl = cardEl.querySelector<HTMLImageElement>('[data-photo]');
+
+  // 사진 요소 위치 기록 후 숨기기 (html-to-image가 data URL img를 못 캡처하는 iOS 문제 우회)
+  let photoRect: { x: number; y: number; w: number; h: number } | null = null;
+  if (photoEl && photoDataUrl) {
+    const cardBounds = cardEl.getBoundingClientRect();
+    const elBounds = photoEl.getBoundingClientRect();
+    photoRect = {
+      x: (elBounds.left - cardBounds.left) * PIXEL_RATIO,
+      y: (elBounds.top - cardBounds.top) * PIXEL_RATIO,
+      w: elBounds.width * PIXEL_RATIO,
+      h: elBounds.height * PIXEL_RATIO,
+    };
+    photoEl.style.visibility = 'hidden';
+  }
+
+  const baseDataUrl = await toPng(cardEl, { cacheBust: true, pixelRatio: PIXEL_RATIO });
+  if (photoEl) photoEl.style.visibility = '';
+
+  // 사진 없으면 기본 캡처 그대로 사용
+  if (!photoRect || !photoDataUrl) {
+    const blob = await (await fetch(baseDataUrl)).blob();
+    return new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
+  }
+
+  // Canvas로 사진 합성
+  return new Promise((resolve, reject) => {
+    const baseImg = new Image();
+    baseImg.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = baseImg.width;
+      canvas.height = baseImg.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(baseImg, 0, 0);
+
+      const userImg = new Image();
+      userImg.onload = () => {
+        const { x, y, w, h } = photoRect!;
+        const r = Math.min(w, h) / 2;
+
+        // 원형 클리핑 후 사진 그리기
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(userImg, x, y, w, h);
+        ctx.restore();
+
+        // 원형 테두리
+        ctx.beginPath();
+        ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1 * PIXEL_RATIO;
+        ctx.stroke();
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) reject(new Error('toBlob failed'));
+            else resolve(new File([blob], 'twin-celeb-result.png', { type: 'image/png' }));
+          },
+          'image/png',
+        );
+      };
+      userImg.onerror = reject;
+      userImg.src = photoDataUrl;
+    };
+    baseImg.onerror = reject;
+    baseImg.src = baseDataUrl;
+  });
+}
 
 export default function CelebResult({ celebrities, previewDataUrl }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
-  // 사진이 없을 때도 캡처 트리거하기 위한 플래그
-  const [imageReady, setImageReady] = useState(!previewDataUrl);
 
-  // previewDataUrl이 바뀌면 imageReady 초기화
   useEffect(() => {
-    setImageReady(!previewDataUrl);
     setShareFile(null);
-  }, [previewDataUrl]);
+    setShareError(false);
+    if (!cardRef.current) return;
 
-  // 이미지가 준비된 후 캡처 (onLoad 또는 사진 없는 경우 즉시)
-  useEffect(() => {
-    if (!imageReady || !cardRef.current) return;
-
+    const el = cardRef.current;
     const timer = setTimeout(async () => {
       try {
-        const dataUrl = await toPng(cardRef.current!, { cacheBust: true, pixelRatio: 2 });
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        setShareFile(new File([blob], 'twin-celeb-result.png', { type: 'image/png' }));
+        const file = await buildShareImage(el, previewDataUrl);
+        setShareFile(file);
       } catch {
-        // 캡처 실패 — 공유 버튼 클릭 시 URL 공유로 fallback
+        // 생성 실패 시 공유 버튼 클릭 때 URL 공유로 fallback
       }
-    }, 100);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [imageReady, celebrities]);
+  }, [celebrities, previewDataUrl]);
 
   const handleShare = async () => {
     setSharing(true);
@@ -54,7 +122,10 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
 
     try {
       if (shareFile && navigator.canShare?.({ files: [shareFile] })) {
-        await navigator.share({ files: [shareFile] });
+        await navigator.share({
+          files: [shareFile],
+          text: SITE_URL,
+        });
       } else if (navigator.share) {
         await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
       } else if (shareFile) {
@@ -79,13 +150,12 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
       <div ref={cardRef} className="bg-white p-5 rounded-xl">
         <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-5">Result</p>
 
-        {/* 업로드한 사진 — 로드 완료 후 캡처 트리거 */}
         {previewDataUrl && (
           <div className="flex justify-center mb-5">
             <img
+              data-photo
               src={previewDataUrl}
               alt="내 사진"
-              onLoad={() => setImageReady(true)}
               className="w-24 h-24 object-cover rounded-full border border-gray-100"
             />
           </div>
@@ -93,10 +163,7 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
 
         <div className="flex flex-col gap-3">
           {celebrities.map((celeb, idx) => (
-            <div
-              key={idx}
-              className="border border-gray-100 rounded-xl p-5 flex flex-col gap-3"
-            >
+            <div key={idx} className="border border-gray-100 rounded-xl p-5 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-400 w-4">{idx + 1}</span>
