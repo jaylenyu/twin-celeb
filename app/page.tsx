@@ -5,9 +5,24 @@ import ImageUpload from '@/components/ImageUpload';
 import CelebResult from '@/components/CelebResult';
 import { Celebrity } from '@/types';
 
+function blobUrlToDataUrl(blobUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    fetch(blobUrl)
+      .then((r) => r.blob())
+      .then((blob) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      })
+      .catch(reject);
+  });
+}
+
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [results, setResults] = useState<Celebrity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,8 +30,11 @@ export default function Home() {
   const handleImageSelect = (file: File, url: string) => {
     setSelectedFile(file);
     setPreviewUrl(url);
+    setPreviewDataUrl(null);
     setResults([]);
     setError(null);
+    // blob: URL → data: URL 변환 (html-to-image iOS Safari 캡처 호환)
+    blobUrlToDataUrl(url).then(setPreviewDataUrl).catch(() => {});
   };
 
   const handleAnalyze = async () => {
@@ -79,7 +97,7 @@ export default function Home() {
 
       {/* 결과 */}
       {results.length > 0 && !isLoading && (
-        <CelebResult celebrities={results} previewUrl={previewUrl} />
+        <CelebResult celebrities={results} previewDataUrl={previewDataUrl} />
       )}
     </main>
   );

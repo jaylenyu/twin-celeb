@@ -6,7 +6,7 @@ import { Celebrity } from '@/types';
 
 interface CelebResultProps {
   celebrities: Celebrity[];
-  previewUrl: string | null;
+  previewDataUrl: string | null;
 }
 
 const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
@@ -16,59 +16,46 @@ const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
 
 const SITE_URL = 'https://twin-celeb.vercel.app';
 
-export default function CelebResult({ celebrities, previewUrl }: CelebResultProps) {
+export default function CelebResult({ celebrities, previewDataUrl }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(false);
 
-  // 결과가 표시되자마자 이미지 미리 생성 (iOS Safari 유저 제스처 타임아웃 대응)
+  // 결과 표시 후 이미지 미리 생성 (iOS Safari gesture timeout 대응)
   useEffect(() => {
-    if (!cardRef.current) return;
+    setShareFile(null);
+    setShareError(false);
 
-    const generate = async () => {
+    const timer = setTimeout(async () => {
+      if (!cardRef.current) return;
       try {
-        const dataUrl = await toPng(cardRef.current!, { cacheBust: true, pixelRatio: 2 });
+        const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2 });
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         setShareFile(new File([blob], 'twin-celeb-result.png', { type: 'image/png' }));
       } catch {
-        // 생성 실패 시 shareFile은 null 유지 → 공유 버튼 클릭 시 재시도
+        // 생성 실패 → 공유 버튼 클릭 시 URL만 공유로 fallback
       }
-    };
+    }, 400);
 
-    // 렌더링 완료 후 생성
-    const timer = setTimeout(generate, 300);
     return () => clearTimeout(timer);
-  }, [celebrities, previewUrl]);
+  }, [celebrities, previewDataUrl]);
 
   const handleShare = async () => {
     setSharing(true);
+    setShareError(false);
 
     try {
-      // 미리 생성된 파일 사용, 없으면 즉석 생성
-      let file = shareFile;
-      if (!file && cardRef.current) {
-        const dataUrl = await toPng(cardRef.current, { cacheBust: true, pixelRatio: 2 });
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        file = new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
-      }
-
-      if (!file) return;
-
-      if (navigator.canShare?.({ files: [file] })) {
-        // 이미지 + URL 함께 공유 시도, 실패하면 이미지만
-        try {
-          await navigator.share({ files: [file], url: SITE_URL });
-        } catch (e) {
-          if (e instanceof Error && e.name === 'AbortError') return;
-          await navigator.share({ files: [file] });
-        }
+      if (shareFile && navigator.canShare?.({ files: [shareFile] })) {
+        // 이미지 공유 (iOS Safari: 미리 생성된 파일로 즉시 호출)
+        await navigator.share({ files: [shareFile] });
       } else if (navigator.share) {
+        // 이미지 공유 불가 → URL 공유
         await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
-      } else {
-        // 최종 fallback: 이미지 다운로드
-        const url = URL.createObjectURL(file);
+      } else if (shareFile) {
+        // Web Share API 없음 → 다운로드
+        const url = URL.createObjectURL(shareFile);
         const link = document.createElement('a');
         link.href = url;
         link.download = 'twin-celeb-result.png';
@@ -76,17 +63,8 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
         URL.revokeObjectURL(url);
       }
     } catch (e) {
-      if (e instanceof Error && e.name !== 'AbortError') {
-        // 공유 실패 시 다운로드로 fallback
-        if (shareFile) {
-          const url = URL.createObjectURL(shareFile);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'twin-celeb-result.png';
-          link.click();
-          URL.revokeObjectURL(url);
-        }
-      }
+      if (e instanceof Error && e.name === 'AbortError') return;
+      setShareError(true);
     } finally {
       setSharing(false);
     }
@@ -98,11 +76,10 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
       <div ref={cardRef} className="bg-white p-5 rounded-xl">
         <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-5">Result</p>
 
-        {/* 업로드한 사진 */}
-        {previewUrl && (
+        {previewDataUrl && (
           <div className="flex justify-center mb-5">
             <img
-              src={previewUrl}
+              src={previewDataUrl}
               alt="내 사진"
               className="w-24 h-24 object-cover rounded-full border border-gray-100"
             />
@@ -115,7 +92,6 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
               key={idx}
               className="border border-gray-100 rounded-xl p-5 flex flex-col gap-3"
             >
-              {/* 헤더 */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-400 w-4">{idx + 1}</span>
@@ -129,7 +105,6 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
                 </span>
               </div>
 
-              {/* 유사도 바 */}
               <div>
                 <div className="flex justify-between text-xs mb-1.5">
                   <span className="text-gray-400">유사도</span>
@@ -143,7 +118,6 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
                 </div>
               </div>
 
-              {/* 닮은 이유 */}
               <div className="flex flex-wrap gap-1.5">
                 {celeb.reasons.map((reason, i) => (
                   <span key={i} className="text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full">
@@ -155,11 +129,10 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
           ))}
         </div>
 
-        {/* 워터마크 */}
         <p className="text-center text-xs text-gray-300 mt-5">{SITE_URL}</p>
       </div>
 
-      {/* 공유 버튼 (캡처 영역 밖) */}
+      {/* 공유 버튼 */}
       <button
         onClick={handleShare}
         disabled={sharing}
@@ -172,6 +145,12 @@ export default function CelebResult({ celebrities, previewUrl }: CelebResultProp
         </svg>
         {sharing ? '준비 중...' : '친구에게 공유하기'}
       </button>
+
+      {shareError && (
+        <p className="mt-2 text-xs text-gray-400 text-center">
+          공유에 실패했습니다. 스크린샷으로 저장해서 보내보세요.
+        </p>
+      )}
     </div>
   );
 }
