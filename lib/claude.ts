@@ -17,11 +17,46 @@ const SYSTEM_PROMPT = `인상 분석 전문가로서 사진 속 인물의 분위
 - 잘생기고 예쁜 연예인 편향 없이 실제 분위기 기준으로 선정
 - 얼굴 없으면: {"celebrities":[],"error":"사진에서 얼굴을 찾을 수 없습니다."}`;
 
-export async function findCelebrityLookalike(
+/** 누적 텍스트에서 완성된 Celebrity 객체를 순서대로 파싱해 반환 */
+function parseCompleteCelebs(text: string): Celebrity[] {
+  const celebs: Celebrity[] = [];
+
+  const arrayMatch = text.match(/"celebrities"\s*:\s*\[/);
+  if (!arrayMatch) return celebs;
+
+  let pos = arrayMatch.index! + arrayMatch[0].length;
+
+  while (pos < text.length) {
+    while (pos < text.length && /[\s,]/.test(text[pos])) pos++;
+    if (text[pos] !== '{') break;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = pos; i < text.length; i++) {
+      if (text[i] === '{') depth++;
+      else if (text[i] === '}') {
+        depth--;
+        if (depth === 0) { end = i + 1; break; }
+      }
+    }
+    if (end === -1) break;
+
+    try {
+      celebs.push(JSON.parse(text.slice(pos, end)) as Celebrity);
+      pos = end;
+    } catch {
+      break;
+    }
+  }
+
+  return celebs;
+}
+
+export async function* streamCelebrityLookalike(
   imageBase64: string,
-  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
-): Promise<Celebrity[]> {
-  const response = await client.messages.create({
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+): AsyncGenerator<Celebrity> {
+  const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
@@ -29,34 +64,33 @@ export async function findCelebrityLookalike(
       {
         role: 'user',
         content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType,
-              data: imageBase64,
-            },
-          },
-          {
-            type: 'text',
-            text: '닮은 연예인 3명을 찾아주세요.',
-          },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+          { type: 'text', text: '닮은 연예인 3명을 찾아주세요.' },
         ],
       },
     ],
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') {
-    throw new Error('Unexpected response type from Claude');
+  let buffer = '';
+  let yieldedCount = 0;
+
+  for await (const chunk of stream) {
+    if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+      buffer += chunk.delta.text;
+
+      const found = parseCompleteCelebs(buffer);
+      for (let i = yieldedCount; i < found.length; i++) {
+        yield found[i];
+        yieldedCount++;
+      }
+    }
   }
 
-  const raw = content.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-  const parsed = JSON.parse(raw);
-
-  if (parsed.error) {
-    throw new Error(parsed.error);
+  // 스트리밍에서 파싱 실패한 경우 전체 버퍼 재시도 (에러 포함)
+  if (yieldedCount === 0) {
+    const raw = buffer.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(raw);
+    if (parsed.error) throw new Error(parsed.error);
+    for (const celeb of parsed.celebrities as Celebrity[]) yield celeb;
   }
-
-  return parsed.celebrities as Celebrity[];
 }

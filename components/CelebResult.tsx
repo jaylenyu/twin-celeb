@@ -7,6 +7,7 @@ import { Celebrity } from '@/types';
 interface CelebResultProps {
   celebrities: Celebrity[];
   previewDataUrl: string | null;
+  isLoading?: boolean;
 }
 
 const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
@@ -92,7 +93,7 @@ async function buildShareImage(
   });
 }
 
-export default function CelebResult({ celebrities, previewDataUrl }: CelebResultProps) {
+export default function CelebResult({ celebrities, previewDataUrl, isLoading = false }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -101,7 +102,7 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
   useEffect(() => {
     setShareFile(null);
     setShareError(false);
-    if (!cardRef.current) return;
+    if (!cardRef.current || isLoading) return;
 
     const el = cardRef.current;
     let cancelled = false;
@@ -118,7 +119,7 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
     });
 
     return () => { cancelled = true; };
-  }, [celebrities, previewDataUrl]);
+  }, [celebrities, previewDataUrl, isLoading]);
 
   const handleShare = async () => {
     setSharing(true);
@@ -208,24 +209,28 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
         <p className="text-center text-xs text-gray-300 mt-5">{SITE_URL}</p>
       </div>
 
-      {/* 공유 버튼 */}
-      <button
-        onClick={handleShare}
-        disabled={sharing}
-        className="mt-4 w-full py-3.5 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-          />
-        </svg>
-        {sharing ? '준비 중...' : '친구에게 공유하기'}
-      </button>
+      {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
+      {!isLoading && (
+        <>
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            className="mt-4 w-full py-3.5 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+            {sharing ? '준비 중...' : '친구에게 공유하기'}
+          </button>
 
-      {shareError && (
-        <p className="mt-2 text-xs text-gray-400 text-center">
-          공유에 실패했습니다. 스크린샷으로 저장해서 보내보세요.
-        </p>
+          {shareError && (
+            <p className="mt-2 text-xs text-gray-400 text-center">
+              공유에 실패했습니다. 스크린샷으로 저장해서 보내보세요.
+            </p>
+          )}
+        </>
       )}
     </div>
   );

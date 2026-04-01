@@ -44,9 +44,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const prevHasResults = useRef(false);
 
+  const showResults = results.length > 0;
   const hasResults = results.length > 0 && !isLoading;
 
-  // 결과가 처음 나타날 때 confetti 실행
+  // 분석 완료 시 confetti 실행
   useEffect(() => {
     if (hasResults && !prevHasResults.current) {
       fireConfetti();
@@ -87,12 +88,35 @@ export default function Home() {
         body: formData,
       });
 
-      const data = await res.json();
+      // 검증 오류 (400) 는 JSON으로 반환
+      if (!res.ok || !res.body) {
+        const data = await res.json();
+        setError(data.error ?? '오류가 발생했습니다.');
+        return;
+      }
 
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResults(data.celebrities);
+      // 스트리밍 NDJSON 파싱
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let lineBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        lineBuffer += decoder.decode(value, { stream: true });
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const data = JSON.parse(line);
+          if (data.error) {
+            setError(data.error);
+            return;
+          }
+          setResults((prev) => [...prev, data as Celebrity]);
+        }
       }
     } catch {
       setError('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
@@ -110,7 +134,7 @@ export default function Home() {
           나의 쌍둥이 연예인
         </h1>
 
-        {!hasResults ? (
+        {!showResults ? (
           <>
             <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
               사진을 올리면 AI가 닮은 연예인을 찾아드려요
@@ -125,14 +149,16 @@ export default function Home() {
             </div>
           </>
         ) : (
-          <div className="mt-6">
-            <button
-              onClick={handleReset}
-              className="px-6 py-2.5 border border-gray-200 rounded-full text-sm text-gray-500 hover:bg-gray-50 transition-colors"
-            >
-              다시하기
-            </button>
-          </div>
+          hasResults && (
+            <div className="mt-6">
+              <button
+                onClick={handleReset}
+                className="px-6 py-2.5 border border-gray-200 rounded-full text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                다시하기
+              </button>
+            </div>
+          )
         )}
       </div>
 
@@ -151,9 +177,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* 결과 */}
-      {hasResults && (
-        <CelebResult celebrities={results} previewDataUrl={previewDataUrl} />
+      {/* 결과 (스트리밍 중에도 표시) */}
+      {showResults && (
+        <CelebResult celebrities={results} previewDataUrl={previewDataUrl} isLoading={isLoading} />
       )}
     </main>
   );
