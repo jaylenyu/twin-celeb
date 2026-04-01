@@ -104,16 +104,20 @@ export default function CelebResult({ celebrities, previewDataUrl }: CelebResult
     if (!cardRef.current) return;
 
     const el = cardRef.current;
-    const timer = setTimeout(async () => {
-      try {
-        const file = await buildShareImage(el, previewDataUrl);
-        setShareFile(file);
-      } catch {
-        // 생성 실패 시 공유 버튼 클릭 때 URL 공유로 fallback
-      }
-    }, 300);
+    let cancelled = false;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(async () => {
+        if (cancelled) return;
+        try {
+          const file = await buildShareImage(el, previewDataUrl);
+          if (!cancelled) setShareFile(file);
+        } catch {
+          // 생성 실패 시 공유 버튼 클릭 때 URL 공유로 fallback
+        }
+      });
+    });
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; };
   }, [celebrities, previewDataUrl]);
 
   const handleShare = async () => {

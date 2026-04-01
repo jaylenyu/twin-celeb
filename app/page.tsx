@@ -139,7 +139,15 @@ export default function Home() {
       {/* 에러 */}
       {error && !isLoading && (
         <div className="mt-2 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
-          {error}
+          <p>{error}</p>
+          {selectedFile && (
+            <button
+              onClick={handleAnalyze}
+              className="mt-3 px-4 py-1.5 text-xs border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+            >
+              다시 시도
+            </button>
+          )}
         </div>
       )}
 

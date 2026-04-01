@@ -10,7 +10,7 @@ interface ImageUploadProps {
   onAnalyze: () => void;
 }
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_SIZE = 1 * 1024 * 1024;
 const ACCEPTED_TYPES = { "image/jpeg": [], "image/png": [], "image/webp": [] };
 
 function useIsMobile() {
@@ -35,7 +35,7 @@ async function compressToUnder5MB(file: File): Promise<File> {
       const canvas = document.createElement("canvas");
       let { width, height } = img;
 
-      const MAX_DIM = 2048;
+      const MAX_DIM = 768;
       if (width > MAX_DIM || height > MAX_DIM) {
         const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
         width = Math.round(width * ratio);
@@ -150,7 +150,7 @@ export default function ImageUpload({
               className="w-40 h-40 object-cover rounded-lg mx-auto"
             />
           ) : (
-            <p className="text-sm text-gray-400 py-4">JPG, PNG, WEBP · 용량 제한 없음</p>
+            <p className="text-sm text-gray-400 py-4">JPG, PNG, WEBP</p>
           )}
           <button
             type="button"
@@ -220,7 +220,7 @@ export default function ImageUpload({
               <p className="text-sm text-gray-600">
                 {isDragActive ? "여기에 놓으세요" : "드래그하거나 클릭해서 업로드"}
               </p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP · 용량 제한 없음</p>
+              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP</p>
             </div>
           </div>
         )}
