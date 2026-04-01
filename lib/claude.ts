@@ -22,9 +22,9 @@ function parseCompleteCelebs(text: string): Celebrity[] {
   const celebs: Celebrity[] = [];
 
   const arrayMatch = text.match(/"celebrities"\s*:\s*\[/);
-  if (!arrayMatch) return celebs;
+  if (!arrayMatch || arrayMatch.index === undefined) return celebs;
 
-  let pos = arrayMatch.index! + arrayMatch[0].length;
+  let pos = arrayMatch.index + arrayMatch[0].length;
 
   while (pos < text.length) {
     while (pos < text.length && /[\s,]/.test(text[pos])) pos++;

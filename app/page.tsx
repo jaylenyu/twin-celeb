@@ -43,6 +43,14 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevHasResults = useRef(false);
+  const previewUrlRef = useRef<string | null>(null);
+
+  // previewUrl blob 정리 (언마운트 시)
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
 
   const showResults = results.length > 0;
   const hasResults = results.length > 0 && !isLoading;
@@ -56,6 +64,8 @@ export default function Home() {
   }, [hasResults]);
 
   const handleImageSelect = (file: File, url: string) => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = url;
     setSelectedFile(file);
     setPreviewUrl(url);
     setPreviewDataUrl(null);
@@ -65,6 +75,10 @@ export default function Home() {
   };
 
   const handleReset = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setPreviewDataUrl(null);

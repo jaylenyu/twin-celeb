@@ -13,6 +13,13 @@ interface ImageUploadProps {
 const MAX_SIZE = 1 * 1024 * 1024;
 const ACCEPTED_TYPES = { "image/jpeg": [], "image/png": [], "image/webp": [] };
 
+const SpinnerIcon = () => (
+  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+  </svg>
+);
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -170,12 +177,7 @@ export default function ImageUpload({
             disabled={disabled}
             className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
           >
-            {isLoading && (
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-            )}
+            {isLoading && <SpinnerIcon />}
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
           </button>
         )}

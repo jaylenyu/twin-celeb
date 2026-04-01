@@ -139,7 +139,7 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
         link.href = url;
         link.download = 'twin-celeb-result.png';
         link.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
       }
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return;
