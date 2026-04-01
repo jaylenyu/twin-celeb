@@ -73,7 +73,7 @@ async function buildShareImage(
         // 원형 테두리
         ctx.beginPath();
         ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#e5e7eb';
+        ctx.strokeStyle = '#F2B999';
         ctx.lineWidth = 1 * PIXEL_RATIO;
         ctx.stroke();
 
@@ -152,8 +152,10 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
   return (
     <div className="w-full max-w-sm mt-4">
       {/* 캡처 영역 */}
-      <div ref={cardRef} className="bg-white p-5 rounded-xl">
-        <p className="text-xs tracking-[0.15em] text-gray-400 uppercase text-center mb-5">Result</p>
+      <div ref={cardRef} className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-xs tracking-[0.2em] text-[#F2B279] uppercase text-center mb-5 font-medium">
+          Result
+        </p>
 
         {previewDataUrl && (
           <div className="flex justify-center mb-5">
@@ -161,43 +163,46 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
               data-photo
               src={previewDataUrl}
               alt="내 사진"
-              className="w-24 h-24 object-cover rounded-full border border-gray-100"
+              className="w-24 h-24 object-cover rounded-full border-2 border-[#F2B999]"
             />
           </div>
         )}
 
         <div className="flex flex-col gap-3">
           {celebrities.map((celeb, idx) => (
-            <div key={idx} className="border border-gray-100 rounded-xl p-5 flex flex-col gap-3">
+            <div key={idx} className="bg-[#F2DDD5]/40 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 w-4">{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#F2B279] w-4">{idx + 1}</span>
                   <div>
-                    <p className="font-medium text-gray-900">{celeb.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{celeb.nameEn} · {celeb.occupation}</p>
+                    <p className="font-semibold text-[#0D0D0D]">{celeb.name}</p>
+                    <p className="text-xs text-[#737373] mt-0.5">{celeb.nameEn} · {celeb.occupation}</p>
                   </div>
                 </div>
-                <span className="text-xs text-gray-400 border border-gray-200 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-[#737373] bg-white px-2.5 py-0.5 rounded-full border border-[#F2B999]">
                   {NATIONALITY_LABELS[celeb.nationality]}
                 </span>
               </div>
 
               <div>
                 <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-400">유사도</span>
-                  <span className="text-gray-700 font-medium">{celeb.similarity}%</span>
+                  <span className="text-[#737373]">유사도</span>
+                  <span className="text-[#0D0D0D] font-semibold">{celeb.similarity}%</span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-1">
+                <div className="w-full bg-white rounded-full h-1.5">
                   <div
-                    className="bg-gray-900 h-1 rounded-full transition-all duration-700"
-                    style={{ width: `${celeb.similarity}%` }}
+                    className="h-1.5 rounded-full transition-all duration-700"
+                    style={{
+                      width: `${celeb.similarity}%`,
+                      background: 'linear-gradient(to right, #F2B999, #F2B279)',
+                    }}
                   />
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5">
                 {celeb.reasons.map((reason, i) => (
-                  <span key={i} className="text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full">
+                  <span key={i} className="text-xs text-[#0D0D0D] bg-white px-2.5 py-1 rounded-full border border-[#F2B999]/60">
                     {reason}
                   </span>
                 ))}
@@ -205,23 +210,25 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
             </div>
           ))}
         </div>
-
       </div>
 
       {/* 스트리밍 진행 중 로딩 dot */}
       {isLoading && (
-        <div className="flex justify-center gap-1.5 mt-5">
+        <div className="flex justify-center gap-2 mt-5">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
+              className="w-2 h-2 rounded-full animate-bounce"
+              style={{
+                animationDelay: `${i * 0.15}s`,
+                background: i % 2 === 0 ? '#F2B999' : '#F2B279',
+              }}
             />
           ))}
         </div>
       )}
 
-      <p className="text-center text-xs text-gray-300 mt-3">{SITE_URL}</p>
+      <p className="text-center text-xs text-[#F2B999] mt-3">{SITE_URL}</p>
 
       {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
       {!isLoading && (
@@ -229,7 +236,7 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           <button
             onClick={handleShare}
             disabled={sharing}
-            className="mt-4 w-full py-3.5 border border-gray-200 rounded-full text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className="mt-4 w-full py-3.5 bg-[#0D0D0D] hover:bg-[#F2B279] hover:text-[#0D0D0D] disabled:opacity-50 text-white text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -240,7 +247,7 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           </button>
 
           {shareError && (
-            <p className="mt-2 text-xs text-gray-400 text-center">
+            <p className="mt-2 text-xs text-[#737373] text-center">
               공유에 실패했습니다. 스크린샷으로 저장해서 보내보세요.
             </p>
           )}

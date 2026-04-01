@@ -26,7 +26,7 @@ function fireConfetti() {
       particleCount: 80,
       spread: 70,
       origin: { x, y: 0.55 },
-      colors: ['#a3a3a3', '#d4d4d4', '#404040', '#737373', '#f5f5f5'],
+      colors: ['#F2DDD5', '#F2B999', '#F2B279', '#0D0D0D', '#737373'],
       scalar: 0.9,
       gravity: 1.2,
     });
@@ -140,17 +140,19 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-6 py-16 bg-white">
+    <main className="min-h-screen flex flex-col items-center px-6 py-16 bg-[#F2DDD5]">
       {/* 헤더 */}
       <div className="text-center mb-12">
-        <p className="text-xs tracking-[0.2em] text-gray-400 uppercase mb-3">AI Celebrity Match</p>
-        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
+        <p className="text-xs tracking-[0.2em] text-[#F2B279] uppercase mb-3 font-medium">
+          AI Celebrity Match
+        </p>
+        <h1 className="text-3xl font-bold text-[#0D0D0D] tracking-tight">
           나의 쌍둥이 연예인
         </h1>
 
         {!showResults ? (
           <>
-            <p className="mt-3 text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+            <p className="mt-3 text-sm text-[#737373] max-w-xs mx-auto leading-relaxed">
               사진을 올리면 AI가 닮은 연예인을 찾아드려요
             </p>
             <div className="mt-8">
@@ -167,7 +169,7 @@ export default function Home() {
             <div className="mt-6">
               <button
                 onClick={handleReset}
-                className="px-6 py-2.5 border border-gray-200 rounded-full text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+                className="px-6 py-2.5 bg-white border border-[#F2B999] rounded-full text-sm text-[#0D0D0D] hover:bg-[#F2DDD5] transition-colors"
               >
                 다시하기
               </button>
@@ -178,12 +180,12 @@ export default function Home() {
 
       {/* 에러 */}
       {error && !isLoading && (
-        <div className="mt-2 px-5 py-4 border border-gray-200 rounded-lg text-gray-500 text-sm max-w-md w-full text-center">
+        <div className="mt-2 px-5 py-4 bg-white border border-[#F2B999] rounded-xl text-[#737373] text-sm max-w-md w-full text-center">
           <p>{error}</p>
           {selectedFile && (
             <button
               onClick={handleAnalyze}
-              className="mt-3 px-4 py-1.5 text-xs border border-gray-200 rounded-full hover:bg-gray-50 transition-colors"
+              className="mt-3 px-4 py-1.5 text-xs bg-[#F2DDD5] border border-[#F2B999] rounded-full text-[#0D0D0D] hover:bg-[#F2B999] transition-colors"
             >
               다시 시도
             </button>

@@ -146,36 +146,38 @@ export default function ImageUpload({
         />
 
         <div
-          className={`w-full border border-gray-200 rounded-xl p-6 text-center transition-colors ${
-            previewUrl ? "bg-gray-50" : "bg-white"
+          className={`w-full border rounded-2xl p-6 text-center transition-colors ${
+            previewUrl
+              ? "border-[#F2B999] bg-white"
+              : "border-[#F2B999] bg-white"
           }`}
         >
           {previewUrl ? (
             <img
               src={previewUrl}
               alt="업로드된 사진"
-              className="w-40 h-40 object-cover rounded-lg mx-auto"
+              className="w-40 h-40 object-cover rounded-xl mx-auto"
             />
           ) : (
-            <p className="text-sm text-gray-400 py-4">JPG, PNG, WEBP</p>
+            <p className="text-sm text-[#737373] py-4">JPG, PNG, WEBP</p>
           )}
           <button
             type="button"
             disabled={disabled}
             onClick={() => mobileInputRef.current?.click()}
-            className="mt-4 px-5 py-2 text-sm border border-gray-300 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="mt-4 px-5 py-2 text-sm border border-[#F2B999] rounded-full text-[#0D0D0D] hover:bg-[#F2DDD5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {uploadLabel}
           </button>
         </div>
 
-        {error && <p className="text-sm text-gray-500">{error}</p>}
+        {error && <p className="text-sm text-[#737373]">{error}</p>}
 
         {previewUrl && (
           <button
             onClick={onAnalyze}
             disabled={disabled}
-            className="w-full py-3.5 bg-gray-900 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#F2B279] hover:text-[#0D0D0D]"
           >
             {isLoading && <SpinnerIcon />}
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
@@ -190,12 +192,12 @@ export default function ImageUpload({
     <div className="flex flex-col items-center gap-5 w-full max-w-sm">
       <div
         {...getRootProps()}
-        className={`w-full border border-dashed rounded-xl p-8 text-center transition-colors ${
+        className={`w-full border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
           disabled
-            ? "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+            ? "border-[#F2B999]/40 bg-white/60 cursor-not-allowed opacity-60"
             : isDragActive
-            ? "border-gray-400 bg-gray-50 cursor-pointer"
-            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer"
+            ? "border-[#F2B279] bg-[#F2DDD5] cursor-pointer"
+            : "border-[#F2B999] bg-white hover:border-[#F2B279] hover:bg-[#F2DDD5]/40 cursor-pointer"
         }`}
       >
         <input {...getInputProps()} />
@@ -205,47 +207,44 @@ export default function ImageUpload({
             <img
               src={previewUrl}
               alt="업로드된 사진"
-              className="w-40 h-40 object-cover rounded-lg"
+              className="w-40 h-40 object-cover rounded-xl"
             />
-            <p className={`text-xs text-gray-400 ${disabled ? "invisible" : ""}`}>클릭하거나 드래그해서 변경</p>
+            <p className={`text-xs text-[#737373] ${disabled ? "invisible" : ""}`}>
+              클릭하거나 드래그해서 변경
+            </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
-            <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 rounded-full bg-[#F2DDD5] flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#F2B279]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
             </div>
             <div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-[#0D0D0D] font-medium">
                 {isDragActive ? "여기에 놓으세요" : "드래그하거나 클릭해서 업로드"}
               </p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP</p>
+              <p className="text-xs text-[#737373] mt-1">JPG, PNG, WEBP</p>
             </div>
           </div>
         )}
       </div>
 
       {compressing && (
-        <p className="text-xs text-gray-400">이미지 압축 중...</p>
+        <p className="text-xs text-[#737373]">이미지 압축 중...</p>
       )}
 
-      {error && <p className="text-sm text-gray-500">{error}</p>}
+      {error && <p className="text-sm text-[#737373]">{error}</p>}
 
       {previewUrl && (
         <button
           onClick={onAnalyze}
           disabled={disabled}
-          className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-sm font-medium rounded-full transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#F2B279] hover:text-[#0D0D0D]"
         >
-          {isLoading && (
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-          )}
+          {isLoading && <SpinnerIcon />}
           {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
         </button>
       )}
