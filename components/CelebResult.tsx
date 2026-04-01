@@ -236,7 +236,7 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           <button
             onClick={handleShare}
             disabled={sharing}
-            className="mt-4 w-full py-3.5 bg-[#0D0D0D] hover:bg-[#F2B279] hover:text-[#0D0D0D] disabled:opacity-50 text-white text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            className="mt-4 w-full py-3.5 bg-[#0D0D0D] hover:bg-[#1a1a1a] disabled:opacity-50 text-white text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}

@@ -177,7 +177,7 @@ export default function ImageUpload({
           <button
             onClick={onAnalyze}
             disabled={disabled}
-            className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#F2B279] hover:text-[#0D0D0D]"
+            className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#1a1a1a]"
           >
             {isLoading && <SpinnerIcon />}
             {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
@@ -242,7 +242,7 @@ export default function ImageUpload({
         <button
           onClick={onAnalyze}
           disabled={disabled}
-          className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#F2B279] hover:text-[#0D0D0D]"
+          className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#1a1a1a]"
         >
           {isLoading && <SpinnerIcon />}
           {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
