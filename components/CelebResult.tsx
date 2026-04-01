@@ -210,23 +210,23 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
             </div>
           ))}
         </div>
-      </div>
 
-      {/* 스트리밍 진행 중 로딩 dot */}
-      {isLoading && (
-        <div className="flex justify-center gap-2 mt-5">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="w-2 h-2 rounded-full animate-bounce"
-              style={{
-                animationDelay: `${i * 0.15}s`,
-                background: i % 2 === 0 ? '#F2B999' : '#F2B279',
-              }}
-            />
-          ))}
-        </div>
-      )}
+        {/* 스트리밍 진행 중 로딩 dot */}
+        {isLoading && (
+          <div className="flex justify-center gap-2 mt-4">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-2 h-2 rounded-full animate-bounce"
+                style={{
+                  animationDelay: `${i * 0.15}s`,
+                  background: i % 2 === 0 ? '#F2B999' : '#F2B279',
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <p className="text-center text-xs text-[#F2B999] mt-3">{SITE_URL}</p>
 
