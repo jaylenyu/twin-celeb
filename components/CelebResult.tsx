@@ -206,7 +206,6 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           ))}
         </div>
 
-        <p className="text-center text-xs text-gray-300 mt-5">{SITE_URL}</p>
       </div>
 
       {/* 스트리밍 진행 중 로딩 dot */}
@@ -221,6 +220,8 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           ))}
         </div>
       )}
+
+      <p className="text-center text-xs text-gray-300 mt-3">{SITE_URL}</p>
 
       {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
       {!isLoading && (
