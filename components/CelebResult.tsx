@@ -209,6 +209,19 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
         <p className="text-center text-xs text-gray-300 mt-5">{SITE_URL}</p>
       </div>
 
+      {/* 스트리밍 진행 중 로딩 dot */}
+      {isLoading && (
+        <div className="flex justify-center gap-1.5 mt-5">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
       {!isLoading && (
         <>
