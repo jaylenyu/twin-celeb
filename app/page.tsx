@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import confetti from 'canvas-confetti';
-import ImageUpload from '@/components/ImageUpload';
-import CelebResult from '@/components/CelebResult';
-import { Celebrity } from '@/types';
+import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
+import ImageUpload from "@/components/ImageUpload";
+import CelebResult from "@/components/CelebResult";
+import { Celebrity } from "@/types";
 
 function blobUrlToDataUrl(blobUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,7 +26,7 @@ function fireConfetti() {
       particleCount: 80,
       spread: 70,
       origin: { x, y: 0.55 },
-      colors: ['#F2DDD5', '#F2B999', '#F2B279', '#0D0D0D', '#737373'],
+      colors: ["#F2DDD5", "#F2B999", "#F2B279", "#0D0D0D", "#737373"],
       scalar: 0.9,
       gravity: 1.2,
     });
@@ -71,7 +71,9 @@ export default function Home() {
     setPreviewDataUrl(null);
     setResults([]);
     setError(null);
-    blobUrlToDataUrl(url).then(setPreviewDataUrl).catch(() => {});
+    blobUrlToDataUrl(url)
+      .then(setPreviewDataUrl)
+      .catch(() => {});
   };
 
   const handleReset = () => {
@@ -95,32 +97,32 @@ export default function Home() {
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedFile);
+      formData.append("image", selectedFile);
 
-      const res = await fetch('/api/find-celeb', {
-        method: 'POST',
+      const res = await fetch("/api/find-celeb", {
+        method: "POST",
         body: formData,
       });
 
       // 검증 오류 (400) 는 JSON으로 반환
       if (!res.ok || !res.body) {
         const data = await res.json();
-        setError(data.error ?? '오류가 발생했습니다.');
+        setError(data.error ?? "오류가 발생했습니다.");
         return;
       }
 
       // 스트리밍 NDJSON 파싱
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let lineBuffer = '';
+      let lineBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         lineBuffer += decoder.decode(value, { stream: true });
-        const lines = lineBuffer.split('\n');
-        lineBuffer = lines.pop() ?? '';
+        const lines = lineBuffer.split("\n");
+        lineBuffer = lines.pop() ?? "";
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -133,7 +135,7 @@ export default function Home() {
         }
       }
     } catch {
-      setError('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+      setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +171,7 @@ export default function Home() {
             <div className="mt-6">
               <button
                 onClick={handleReset}
-                className="px-6 py-2.5 bg-white border border-[#F2B999] rounded-full text-sm text-[#0D0D0D] hover:bg-[#F2DDD5] transition-colors"
+                className="cursor-pointer px-6 py-2.5 bg-white border border-[#F2B999] rounded-full text-sm text-[#0D0D0D] hover:bg-[#F2DDD5] transition-colors"
               >
                 다시하기
               </button>
@@ -195,7 +197,11 @@ export default function Home() {
 
       {/* 결과 (스트리밍 중에도 표시) */}
       {showResults && (
-        <CelebResult celebrities={results} previewDataUrl={previewDataUrl} isLoading={isLoading} />
+        <CelebResult
+          celebrities={results}
+          previewDataUrl={previewDataUrl}
+          isLoading={isLoading}
+        />
       )}
     </main>
   );
