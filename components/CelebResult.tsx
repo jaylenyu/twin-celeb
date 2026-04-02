@@ -15,7 +15,7 @@ const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
   Hollywood: '할리우드',
 };
 
-const SITE_URL = 'https://twin-celeb.vercel.app';
+const SITE_URL = 'https://twin-celeb.com';
 const PIXEL_RATIO = 2;
 
 async function buildShareImage(
