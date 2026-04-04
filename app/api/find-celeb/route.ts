@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
 import { streamCelebrityLookalike } from '@/lib/claude';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 type AllowedMediaType = typeof ALLOWED_TYPES[number];
@@ -25,6 +31,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       { status: 400 },
     );
   }
+
+  // 분석 카운터 증가 (non-blocking)
+  redis.incr('twin_celeb:analyze_count').catch(() => {});
 
   const arrayBuffer = await file.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString('base64');

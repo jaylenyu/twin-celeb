@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 import { Celebrity } from '@/types';
+import { trackShare } from '@/lib/analytics';
 
 interface CelebResultProps {
   celebrities: Celebrity[];
@@ -98,6 +99,7 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
   const [shareFile, setShareFile] = useState<File | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
+  const [shareCount, setShareCount] = useState<number | null>(null);
 
   useEffect(() => {
     setShareFile(null);
@@ -121,19 +123,30 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
     return () => { cancelled = true; };
   }, [celebrities, previewDataUrl, isLoading]);
 
+  useEffect(() => {
+    if (isLoading) return;
+    fetch('/api/track', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data: { share_count: number }) => setShareCount(data.share_count))
+      .catch(() => {});
+  }, [isLoading]);
+
   const handleShare = async () => {
     setSharing(true);
     setShareError(false);
 
     try {
       if (shareFile && navigator.canShare?.({ files: [shareFile] })) {
+        trackShare('native_file');
         await navigator.share({
           files: [shareFile],
           text: SITE_URL,
         });
       } else if (navigator.share) {
+        trackShare('native_url');
         await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
       } else if (shareFile) {
+        trackShare('download');
         const url = URL.createObjectURL(shareFile);
         const link = document.createElement('a');
         link.href = url;
@@ -141,6 +154,14 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 100);
       }
+      // 공유 카운터 증가 (fire and forget)
+      fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'share' }),
+      }).then((r) => r.json()).then((data: { share_count: number }) => {
+        setShareCount(data.share_count);
+      }).catch(() => {});
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return;
       setShareError(true);
@@ -233,6 +254,11 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
       {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
       {!isLoading && (
         <>
+          {shareCount !== null && shareCount > 0 && (
+            <p className="text-center text-xs text-[#737373] mt-3">
+              지금까지 {shareCount.toLocaleString('ko-KR')}명이 결과를 공유했어요
+            </p>
+          )}
           <button
             onClick={handleShare}
             disabled={sharing}

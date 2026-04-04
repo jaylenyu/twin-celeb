@@ -5,6 +5,7 @@ import confetti from "canvas-confetti";
 import ImageUpload from "@/components/ImageUpload";
 import CelebResult from "@/components/CelebResult";
 import { Celebrity } from "@/types";
+import { trackAnalyzeClick, trackAnalyzeComplete } from "@/lib/analytics";
 
 function blobUrlToDataUrl(blobUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -91,9 +92,12 @@ export default function Home() {
   const handleAnalyze = async () => {
     if (!selectedFile) return;
 
+    trackAnalyzeClick();
     setIsLoading(true);
     setError(null);
     setResults([]);
+
+    let completedCount = 0;
 
     try {
       const formData = new FormData();
@@ -131,9 +135,12 @@ export default function Home() {
             setError(data.error);
             return;
           }
+          completedCount++;
           setResults((prev) => [...prev, data as Celebrity]);
         }
       }
+
+      if (completedCount > 0) trackAnalyzeComplete(completedCount);
     } catch {
       setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
