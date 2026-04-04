@@ -43,8 +43,16 @@ export default function Home() {
   const [results, setResults] = useState<Celebrity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ analyze_count: number; share_count: number } | null>(null);
   const prevHasResults = useRef(false);
   const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/track', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
 
   // previewUrl blob 정리 (언마운트 시)
   useEffect(() => {
@@ -164,6 +172,19 @@ export default function Home() {
             <p className="mt-3 text-sm text-[#737373] max-w-xs mx-auto leading-relaxed">
               사진을 올리면 AI가 닮은 연예인을 찾아드려요
             </p>
+            {stats && (stats.analyze_count > 0 || stats.share_count > 0) && (
+              <p className="mt-2 text-xs text-[#737373]">
+                {stats.analyze_count > 0 && (
+                  <span>{stats.analyze_count.toLocaleString('ko-KR')}명 분석</span>
+                )}
+                {stats.analyze_count > 0 && stats.share_count > 0 && (
+                  <span className="mx-1.5">·</span>
+                )}
+                {stats.share_count > 0 && (
+                  <span>{stats.share_count.toLocaleString('ko-KR')}번 공유</span>
+                )}
+              </p>
+            )}
             <div className="mt-8">
               <ImageUpload
                 onImageSelect={handleImageSelect}
