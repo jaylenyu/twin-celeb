@@ -5,10 +5,14 @@ on:
     branches:
       - main
       - develop
+  push:
+    branches:
+      - main
+      - develop
 
 jobs:
   ci:
-    name: Type Check & Build
+    name: Type Check & Test & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -28,6 +32,9 @@ jobs:
 
       - name: Type check
         run: pnpm type-check
+
+      - name: Run tests
+        run: pnpm test
 
       - name: Build
         run: pnpm build

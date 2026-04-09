@@ -10,7 +10,18 @@ interface ImageUploadProps {
   onAnalyze: () => void;
 }
 
-const MAX_SIZE = 1 * 1024 * 1024;
+interface CompressionResult {
+  type: 'success';
+  file: File;
+  originalSize: number;
+  compressedSize: number;
+}
+
+interface CompressionError {
+  type: 'error';
+  message: string;
+}
+
 const ACCEPTED_TYPES = { "image/jpeg": [], "image/png": [], "image/webp": [] };
 
 const SpinnerIcon = () => (
@@ -40,57 +51,77 @@ function useIsMobile() {
   return isMobile;
 }
 
-async function compressToUnder5MB(file: File): Promise<File> {
-  if (file.size <= MAX_SIZE) return file;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-
-      const canvas = document.createElement("canvas");
-      let { width, height } = img;
-
+function createCompressionWorker(): Worker | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const workerCode = `
+      const MAX_SIZE = 1 * 1024 * 1024;
       const MAX_DIM = 768;
-      if (width > MAX_DIM || height > MAX_DIM) {
-        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
+      const INITIAL_QUALITY = 0.85;
+      const MIN_QUALITY = 0.3;
+      const QUALITY_STEP = 0.1;
+
+      async function compressToUnderMaxSize(file) {
+        if (file.size <= MAX_SIZE) return file;
+
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = url;
+        });
+
+        URL.revokeObjectURL(url);
+
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        return new Promise((resolve) => {
+          const tryCompress = (quality) => {
+            canvas.toBlob((blob) => {
+              if (!blob) { resolve(file); return; }
+              if (blob.size <= MAX_SIZE || quality <= MIN_QUALITY) {
+                resolve(new File([blob], file.name.replace(/\\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+              } else {
+                tryCompress(Math.round((quality - QUALITY_STEP) * 100) / 100);
+              }
+            }, 'image/jpeg', quality);
+          };
+          tryCompress(INITIAL_QUALITY);
+        });
       }
 
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-
-      const tryCompress = (quality: number) => {
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
-            }
-            if (blob.size <= MAX_SIZE || quality <= 0.1) {
-              resolve(
-                new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
-                  type: "image/jpeg",
-                }),
-              );
-            } else {
-              tryCompress(Math.round((quality - 0.1) * 10) / 10);
-            }
-          },
-          "image/jpeg",
-          quality,
-        );
+      self.onmessage = async (event) => {
+        const { type, file } = event.data;
+        if (type === 'compress') {
+          try {
+            const originalSize = file.size;
+            const compressed = await compressToUnderMaxSize(file);
+            self.postMessage({ type: 'success', file: compressed, originalSize, compressedSize: compressed.size });
+          } catch (error) {
+            self.postMessage({ type: 'error', message: error.message || 'Compression failed' });
+          }
+        }
       };
-
-      tryCompress(0.9);
-    };
-
-    img.src = url;
-  });
+    `;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    return new Worker(URL.createObjectURL(blob));
+  } catch {
+    return null;
+  }
 }
 
 export default function ImageUpload({
@@ -103,37 +134,115 @@ export default function ImageUpload({
   const [compressing, setCompressing] = useState(false);
   const isMobile = useIsMobile();
   const mobileInputRef = useRef<HTMLInputElement>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   const disabled = isLoading || compressing;
 
-  const handleFiles = useCallback(
-    async (files: FileList | File[]) => {
-      setError(null);
-      const file = files[0];
-      if (!file) return;
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        setError("JPG, PNG, WEBP 형식만 지원합니다.");
-        return;
-      }
+  const handleCompressionResult = useCallback((file: File, url: string) => {
+    onImageSelect(file, url);
+    setCompressing(false);
+  }, [onImageSelect]);
 
-      setCompressing(file.size > MAX_SIZE);
-      const compressed = await compressToUnder5MB(file);
-      setCompressing(false);
+  const handleCompressionError = useCallback((message: string) => {
+    setError(message);
+    setCompressing(false);
+  }, []);
 
-      onImageSelect(compressed, URL.createObjectURL(compressed));
-    },
-    [onImageSelect],
-  );
+  useEffect(() => {
+    workerRef.current = createCompressionWorker();
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
 
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    setError(null);
+    const file = files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('JPG, PNG, WEBP 형식만 지원합니다.');
+      return;
+    }
+
+    const maxSize = 1 * 1024 * 1024;
+    
+    if (file.size <= maxSize) {
+      onImageSelect(file, URL.createObjectURL(file));
+      return;
+    }
+
+    setCompressing(true);
+
+    if (workerRef.current) {
+      workerRef.current.onmessage = (event: MessageEvent<CompressionResult | CompressionError>) => {
+        const { type } = event.data;
+        if (type === 'success') {
+          const result = event.data as CompressionResult;
+          handleCompressionResult(result.file, URL.createObjectURL(result.file));
+        } else {
+          handleCompressionError((event.data as CompressionError).message);
+        }
+      };
+      workerRef.current.onerror = () => {
+        handleCompressionError('압축 중 오류가 발생했습니다.');
+      };
+      workerRef.current.postMessage({ type: 'compress', file });
+    } else {
+      const MAX_DIM = 768;
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+
+        const tryCompress = (quality: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              handleCompressionError('압축 실패');
+              return;
+            }
+            if (blob.size <= maxSize || quality <= 0.3) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+              handleCompressionResult(compressedFile, URL.createObjectURL(compressedFile));
+            } else {
+              tryCompress(Math.round((quality - 0.1) * 10) / 10);
+            }
+          }, 'image/jpeg', quality);
+        };
+
+        tryCompress(0.85);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        handleCompressionError('이미지 로드 실패');
+      };
+
+      img.src = url;
+    }
+  }, [onImageSelect, handleCompressionResult, handleCompressionError]);
+
+  const handleMobileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) handleFiles(e.target.files);
-  };
+  }, [handleFiles]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       setError(null);
       if (rejectedFiles.length > 0) {
-        setError("JPG, PNG, WEBP 형식만 지원합니다.");
+        setError('JPG, PNG, WEBP 형식만 지원합니다.');
         return;
       }
       if (acceptedFiles[0]) handleFiles(acceptedFiles);
@@ -149,12 +258,11 @@ export default function ImageUpload({
   });
 
   const uploadLabel = compressing
-    ? "압축 중..."
+    ? '압축 중...'
     : previewUrl
-      ? "다시 선택"
-      : "사진 선택";
+      ? '다시 선택'
+      : '사진 선택';
 
-  // ── 모바일 UI ───────────────────────────────────────────
   if (isMobile) {
     return (
       <div className="flex flex-col items-center gap-5 w-full max-w-sm">
@@ -170,8 +278,8 @@ export default function ImageUpload({
         <div
           className={`w-full border rounded-2xl p-6 text-center transition-colors ${
             previewUrl
-              ? "border-[#F2B999] bg-white"
-              : "border-[#F2B999] bg-white"
+              ? 'border-[#F2B999] bg-white'
+              : 'border-[#F2B999] bg-white'
           }`}
         >
           {previewUrl ? (
@@ -202,24 +310,23 @@ export default function ImageUpload({
             className="w-full py-3.5 bg-[#0D0D0D] disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#1a1a1a]"
           >
             {isLoading && <SpinnerIcon />}
-            {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
+            {isLoading ? '분석 중...' : '닮은 연예인 찾기'}
           </button>
         )}
       </div>
     );
   }
 
-  // ── 데스크톱 UI ─────────────────────────────────────────
   return (
     <div className="flex flex-col items-center gap-5 w-full max-w-sm">
       <div
         {...getRootProps()}
         className={`w-full border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
           disabled
-            ? "border-[#F2B999]/40 bg-white/60 cursor-not-allowed opacity-60"
+            ? 'border-[#F2B999]/40 bg-white/60 cursor-not-allowed opacity-60'
             : isDragActive
-              ? "border-[#F2B279] bg-[#F2DDD5] cursor-pointer"
-              : "border-[#F2B999] bg-white hover:border-[#F2B279] hover:bg-[#F2DDD5]/40 cursor-pointer"
+              ? 'border-[#F2B279] bg-[#F2DDD5] cursor-pointer'
+              : 'border-[#F2B999] bg-white hover:border-[#F2B279] hover:bg-[#F2DDD5]/40 cursor-pointer'
         }`}
       >
         <input {...getInputProps()} />
@@ -232,7 +339,7 @@ export default function ImageUpload({
               className="w-40 h-40 object-cover rounded-xl"
             />
             <p
-              className={`text-xs text-[#737373] ${disabled ? "invisible" : ""}`}
+              className={`text-xs text-[#737373] ${disabled ? 'invisible' : ''}`}
             >
               클릭하거나 드래그해서 변경
             </p>
@@ -257,8 +364,8 @@ export default function ImageUpload({
             <div>
               <p className="text-sm text-[#0D0D0D] font-medium">
                 {isDragActive
-                  ? "여기에 놓으세요"
-                  : "드래그하거나 클릭해서 업로드"}
+                  ? '여기에 놓으세요'
+                  : '드래그하거나 클릭해서 업로드'}
               </p>
               <p className="text-xs text-[#737373] mt-1">JPG, PNG, WEBP</p>
             </div>
@@ -279,7 +386,7 @@ export default function ImageUpload({
           className="w-full py-3.5 bg-[#0D0D0D] cursor-pointer disabled:bg-[#F2B999]/50 text-white disabled:text-[#737373] text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2 hover:bg-[#1a1a1a]"
         >
           {isLoading && <SpinnerIcon />}
-          {isLoading ? "분석 중..." : "닮은 연예인 찾기"}
+          {isLoading ? '분석 중...' : '닮은 연예인 찾기'}
         </button>
       )}
     </div>

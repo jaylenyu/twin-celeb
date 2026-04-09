@@ -1,9 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Celebrity } from '@/types';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let client: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!client) {
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return client;
+}
 
 const SYSTEM_PROMPT = `인상 분석 전문가로서 사진 속 인물의 분위기·인상을 분석해 닮은 연예인을 찾아드립니다.
 
@@ -17,7 +24,6 @@ const SYSTEM_PROMPT = `인상 분석 전문가로서 사진 속 인물의 분위
 - 잘생기고 예쁜 연예인 편향 없이 실제 분위기 기준으로 선정
 - 얼굴 없으면: {"celebrities":[],"error":"사진에서 얼굴을 찾을 수 없습니다."}`;
 
-/** 누적 텍스트에서 완성된 Celebrity 객체를 순서대로 파싱해 반환 */
 function parseCompleteCelebs(text: string): Celebrity[] {
   const celebs: Celebrity[] = [];
 
@@ -56,7 +62,9 @@ export async function* streamCelebrityLookalike(
   imageBase64: string,
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
 ): AsyncGenerator<Celebrity> {
-  const stream = client.messages.stream({
+  const anthropic = getClient();
+  
+  const stream = anthropic.messages.stream({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
@@ -86,11 +94,17 @@ export async function* streamCelebrityLookalike(
     }
   }
 
-  // 스트리밍에서 파싱 실패한 경우 전체 버퍼 재시도 (에러 포함)
   if (yieldedCount === 0) {
     const raw = buffer.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-    const parsed = JSON.parse(raw);
-    if (parsed.error) throw new Error(parsed.error);
-    for (const celeb of parsed.celebrities as Celebrity[]) yield celeb;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.error) throw new Error(parsed.error);
+      for (const celeb of parsed.celebrities as Celebrity[]) yield celeb;
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('celebrities')) {
+        throw new Error('연예인 분석 중 오류가 발생했습니다.');
+      }
+      throw err;
+    }
   }
 }
