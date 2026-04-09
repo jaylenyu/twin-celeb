@@ -27,6 +27,7 @@
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4 |
 | AI | Anthropic Claude Sonnet 4.6 (Vision) |
+| Monitoring | Sentry |
 | Deploy | Vercel |
 
 ## 로컬 실행
@@ -67,3 +68,6 @@ types/
 | 변수 | 설명 |
 |------|------|
 | `ANTHROPIC_API_KEY` | Anthropic API 키 ([발급](https://console.anthropic.com)) |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry 에러 모니터링 DSN ([설정](https://sentry.io)) |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (통계 카운팅) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis 토큰 |
