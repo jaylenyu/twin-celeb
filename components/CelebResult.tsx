@@ -12,20 +12,18 @@ interface CelebResultProps {
 }
 
 const NATIONALITY_LABELS: Record<Celebrity['nationality'], string> = {
-  Korean: '한국',
-  Hollywood: '할리우드',
+  Korean: '🇰🇷 한국',
+  Hollywood: '🎬 할리우드',
 };
+
+const RANK_COLORS = ['#D97445', '#B09278', '#C4956A'];
 
 const SITE_URL = 'https://twin-celeb.com';
 const PIXEL_RATIO = 2;
 
-async function buildShareImage(
-  cardEl: HTMLDivElement,
-  photoDataUrl: string | null,
-): Promise<File> {
+async function buildShareImage(cardEl: HTMLDivElement, photoDataUrl: string | null): Promise<File> {
   const photoEl = cardEl.querySelector<HTMLImageElement>('[data-photo]');
 
-  // 사진 요소 위치 기록 후 숨기기 (html-to-image가 data URL img를 못 캡처하는 iOS 문제 우회)
   let photoRect: { x: number; y: number; w: number; h: number } | null = null;
   if (photoEl && photoDataUrl) {
     const cardBounds = cardEl.getBoundingClientRect();
@@ -42,13 +40,11 @@ async function buildShareImage(
   const baseDataUrl = await toPng(cardEl, { cacheBust: true, pixelRatio: PIXEL_RATIO });
   if (photoEl) photoEl.style.visibility = '';
 
-  // 사진 없으면 기본 캡처 그대로 사용
   if (!photoRect || !photoDataUrl) {
     const blob = await (await fetch(baseDataUrl)).blob();
     return new File([blob], 'twin-celeb-result.png', { type: 'image/png' });
   }
 
-  // Canvas로 사진 합성
   return new Promise((resolve, reject) => {
     const baseImg = new Image();
     baseImg.onload = () => {
@@ -62,22 +58,17 @@ async function buildShareImage(
       userImg.onload = () => {
         const { x, y, w, h } = photoRect!;
         const r = Math.min(w, h) / 2;
-
-        // 원형 클리핑 후 사진 그리기
         ctx.save();
         ctx.beginPath();
         ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
         ctx.clip();
         ctx.drawImage(userImg, x, y, w, h);
         ctx.restore();
-
-        // 원형 테두리
         ctx.beginPath();
         ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#F2B999';
-        ctx.lineWidth = 1 * PIXEL_RATIO;
+        ctx.strokeStyle = '#E8924E';
+        ctx.lineWidth = 1.5 * PIXEL_RATIO;
         ctx.stroke();
-
         canvas.toBlob(
           (blob) => {
             if (!blob) reject(new Error('toBlob failed'));
@@ -94,6 +85,68 @@ async function buildShareImage(
   });
 }
 
+/* ── Celebrity card item ─────────────────────────────────────── */
+function CelebCard({ celeb, idx }: { celeb: Celebrity; idx: number }) {
+  const rankColor = RANK_COLORS[idx] ?? '#B09278';
+
+  return (
+    <div className="bg-white/70 rounded-2xl p-4 border border-[rgba(200,130,80,0.12)]">
+      <div className="flex items-start gap-3">
+        {/* Rank number */}
+        <span
+          className="text-4xl font-black leading-none mt-0.5 tabular-nums shrink-0"
+          style={{ color: rankColor, opacity: 0.9 }}
+        >
+          {idx + 1}
+        </span>
+
+        <div className="flex-1 min-w-0">
+          {/* Name row */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-bold text-[#1C0D07] truncate">{celeb.name}</p>
+              <p className="text-xs text-[#B09278] mt-0.5 truncate">{celeb.nameEn} · {celeb.occupation}</p>
+            </div>
+            <span className="text-[10px] text-[#7D5840] bg-[#FBE9DB] px-2.5 py-0.5 rounded-full shrink-0 border border-[#E8924E]/20 whitespace-nowrap">
+              {NATIONALITY_LABELS[celeb.nationality]}
+            </span>
+          </div>
+
+          {/* Similarity bar */}
+          <div className="mt-3">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="text-[#B09278]">유사도</span>
+              <span className="font-bold text-[#1C0D07]">{celeb.similarity}%</span>
+            </div>
+            <div className="w-full bg-[#F5E8DC] rounded-full h-2 overflow-hidden">
+              <div
+                className="h-2 rounded-full transition-all duration-700"
+                style={{
+                  width: `${celeb.similarity}%`,
+                  background: `linear-gradient(to right, ${rankColor}80, ${rankColor})`,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Reason tags */}
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {celeb.reasons.map((reason, i) => (
+              <span
+                key={i}
+                className="text-[11px] text-[#7D5840] bg-[#FBE9DB]/70 px-2.5 py-0.5 rounded-full border border-[#E8924E]/15"
+              >
+                {reason}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main result component ───────────────────────────────────── */
 export default function CelebResult({ celebrities, previewDataUrl, isLoading = false }: CelebResultProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [shareFile, setShareFile] = useState<File | null>(null);
@@ -114,12 +167,9 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
         try {
           const file = await buildShareImage(el, previewDataUrl);
           if (!cancelled) setShareFile(file);
-        } catch {
-          // 생성 실패 시 공유 버튼 클릭 때 URL 공유로 fallback
-        }
+        } catch { /* URL 공유로 fallback */ }
       });
     });
-
     return () => { cancelled = true; };
   }, [celebrities, previewDataUrl, isLoading]);
 
@@ -134,14 +184,10 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
   const handleShare = async () => {
     setSharing(true);
     setShareError(false);
-
     try {
       if (shareFile && navigator.canShare?.({ files: [shareFile] })) {
         trackShare('native_file');
-        await navigator.share({
-          files: [shareFile],
-          text: SITE_URL,
-        });
+        await navigator.share({ files: [shareFile], text: SITE_URL });
       } else if (navigator.share) {
         trackShare('native_url');
         await navigator.share({ url: SITE_URL, title: '나의 쌍둥이 연예인' });
@@ -154,14 +200,14 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 100);
       }
-      // 공유 카운터 증가 (fire and forget)
       fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'share' }),
-      }).then((r) => r.json()).then((data: { share_count: number }) => {
-        setShareCount(data.share_count);
-      }).catch(() => {});
+      })
+        .then((r) => r.json())
+        .then((data: { share_count: number }) => setShareCount(data.share_count))
+        .catch(() => {});
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return;
       setShareError(true);
@@ -171,98 +217,70 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
   };
 
   return (
-    <div className="w-full max-w-sm mt-4">
-      {/* 캡처 영역 */}
-      <div ref={cardRef} className="bg-white rounded-2xl p-5 shadow-sm">
-        <p className="text-xs tracking-[0.2em] text-[#F2B279] uppercase text-center mb-5 font-medium">
-          Result
-        </p>
-
-        {previewDataUrl && (
-          <div className="flex justify-center mb-5">
+    <div className="w-full">
+      {/* ── Capture zone ── */}
+      <div ref={cardRef} className="card-glass rounded-3xl p-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-[10px] tracking-[0.22em] text-[#B09278] uppercase font-medium">
+            My Celebrity Match
+          </p>
+          {previewDataUrl && (
             <img
               data-photo
               src={previewDataUrl}
               alt="내 사진"
-              className="w-24 h-24 object-cover rounded-full border-2 border-[#F2B999]"
+              className="w-10 h-10 object-cover rounded-full border-2 border-[#E8924E]/40"
             />
-          </div>
-        )}
+          )}
+        </div>
 
+        {/* Celebrity list */}
         <div className="flex flex-col gap-3">
           {celebrities.map((celeb, idx) => (
-            <div key={idx} className="bg-[#F2DDD5]/40 rounded-xl p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-[#F2B279] w-4">{idx + 1}</span>
-                  <div>
-                    <p className="font-semibold text-[#0D0D0D]">{celeb.name}</p>
-                    <p className="text-xs text-[#737373] mt-0.5">{celeb.nameEn} · {celeb.occupation}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-[#737373] bg-white px-2.5 py-0.5 rounded-full border border-[#F2B999]">
-                  {NATIONALITY_LABELS[celeb.nationality]}
-                </span>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-[#737373]">유사도</span>
-                  <span className="text-[#0D0D0D] font-semibold">{celeb.similarity}%</span>
-                </div>
-                <div className="w-full bg-white rounded-full h-1.5">
-                  <div
-                    className="h-1.5 rounded-full transition-all duration-700"
-                    style={{
-                      width: `${celeb.similarity}%`,
-                      background: 'linear-gradient(to right, #F2B999, #F2B279)',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {celeb.reasons.map((reason, i) => (
-                  <span key={i} className="text-xs text-[#0D0D0D] bg-white px-2.5 py-1 rounded-full border border-[#F2B999]/60">
-                    {reason}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <CelebCard key={idx} celeb={celeb} idx={idx} />
           ))}
         </div>
 
-        {/* 스트리밍 진행 중 로딩 dot */}
+        {/* Streaming loading dots */}
         {isLoading && (
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-2 mt-5">
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
                 className="w-2 h-2 rounded-full animate-bounce"
                 style={{
                   animationDelay: `${i * 0.15}s`,
-                  background: i % 2 === 0 ? '#F2B999' : '#F2B279',
+                  background: i % 2 === 0 ? '#E8924E' : '#D97445',
                 }}
               />
             ))}
           </div>
         )}
+
+        {/* Watermark */}
+        <p className="text-center text-[10px] text-[#C4A090] mt-4 tracking-wider">
+          {SITE_URL}
+        </p>
       </div>
 
-      <p className="text-center text-xs text-[#F2B999] mt-3">{SITE_URL}</p>
-
-      {/* 공유 버튼 — 스트리밍 완료 후에만 표시 */}
+      {/* ── Share section ── */}
       {!isLoading && (
-        <>
+        <div className="mt-4 flex flex-col items-center gap-3">
           {shareCount !== null && shareCount > 0 && (
-            <p className="text-center text-xs text-[#737373] mt-3">
-              지금까지 {shareCount.toLocaleString('ko-KR')}명이 결과를 공유했어요
+            <p className="text-xs text-[#B09278]">
+              지금까지{' '}
+              <strong className="text-[#7D5840]">
+                {shareCount.toLocaleString('ko-KR')}명
+              </strong>
+              이 결과를 공유했어요
             </p>
           )}
+
           <button
             onClick={handleShare}
             disabled={sharing}
-            className="mt-4 w-full py-3.5 bg-[#0D0D0D] hover:bg-[#1a1a1a] disabled:opacity-50 text-white text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 bg-[#1C0D07] hover:bg-[#2D1810] disabled:opacity-50 text-white text-sm font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-black/15 active:scale-[0.98] cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -273,11 +291,11 @@ export default function CelebResult({ celebrities, previewDataUrl, isLoading = f
           </button>
 
           {shareError && (
-            <p className="mt-2 text-xs text-[#737373] text-center">
+            <p className="text-xs text-[#B09278] text-center">
               공유에 실패했습니다. 스크린샷으로 저장해서 보내보세요.
             </p>
           )}
-        </>
+        </div>
       )}
     </div>
   );

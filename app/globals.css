@@ -1,15 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --c-black:   #0D0D0D;
-  --c-mid:     #737373;
-  --c-peach-1: #F2DDD5;
-  --c-peach-2: #F2B999;
-  --c-peach-3: #F2B279;
+  --c-bg-from:   #FEF3EC;
+  --c-bg-to:     #F8DDD0;
+  --c-surface:   #FFFFFF;
+  --c-surface-2: #FDF7F3;
+  --c-border:    rgba(200, 130, 80, 0.18);
+  --c-border-md: rgba(200, 130, 80, 0.35);
+  --c-text:      #1C0D07;
+  --c-text-2:    #7D5840;
+  --c-text-3:    #B09278;
+  --c-accent:    #D97445;
+  --c-accent-2:  #F0A572;
+  --c-pale:      #FBE9DB;
 }
 
 body {
-  background: var(--c-peach-1);
-  color: var(--c-black);
+  background: linear-gradient(150deg, var(--c-bg-from) 0%, var(--c-bg-to) 100%);
+  background-attachment: fixed;
+  color: var(--c-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.anim-fade-up {
+  animation: fadeInUp 0.55s cubic-bezier(.22,.68,0,1.2) both;
+}
+
+.anim-fade {
+  animation: fadeIn 0.4s ease both;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #C86830 0%, #E8924E 50%, #C86830 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(210, 150, 100, 0.18);
+  box-shadow: 0 4px 24px rgba(180, 100, 50, 0.08), 0 1px 4px rgba(180, 100, 50, 0.06);
 }
