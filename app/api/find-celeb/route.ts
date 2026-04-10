@@ -10,7 +10,7 @@ const redis = new Redis({
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 type AllowedMediaType = typeof ALLOWED_TYPES[number];
 
-const MAX_SIZE_BYTES = 1 * 1024 * 1024; // 1MB (클라이언트에서 압축 후 전송)
+const MAX_SIZE_BYTES = 3 * 1024 * 1024; // 3MB (클라이언트에서 압축 후 전송)
 
 export async function POST(request: NextRequest): Promise<Response> {
   const formData = await request.formData();

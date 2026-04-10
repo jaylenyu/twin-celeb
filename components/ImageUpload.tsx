@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone, FileRejection } from "react-dropzone";
 
 interface ImageUploadProps {
@@ -10,17 +10,7 @@ interface ImageUploadProps {
   onAnalyze: () => void;
 }
 
-interface CompressionResult {
-  type: "success";
-  file: File;
-  originalSize: number;
-  compressedSize: number;
-}
 
-interface CompressionError {
-  type: "error";
-  message: string;
-}
 
 const ACCEPTED_TYPES = { "image/jpeg": [], "image/png": [], "image/webp": [] };
 
@@ -48,77 +38,13 @@ function useIsMobile() {
   return isMobile;
 }
 
-function createCompressionWorker(): Worker | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const workerCode = `
-      const MAX_SIZE = 1 * 1024 * 1024;
-      const MAX_DIM = 768;
-      const INITIAL_QUALITY = 0.85;
-      const MIN_QUALITY = 0.3;
-      const QUALITY_STEP = 0.1;
 
-      async function compressToUnderMaxSize(file) {
-        if (file.size <= MAX_SIZE) return file;
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        await new Promise((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
-          img.src = url;
-        });
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
-        if (width > MAX_DIM || height > MAX_DIM) {
-          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        return new Promise((resolve) => {
-          const tryCompress = (quality) => {
-            canvas.toBlob((blob) => {
-              if (!blob) { resolve(file); return; }
-              if (blob.size <= MAX_SIZE || quality <= MIN_QUALITY) {
-                resolve(new File([blob], file.name.replace(/\\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-              } else {
-                tryCompress(Math.round((quality - QUALITY_STEP) * 100) / 100);
-              }
-            }, 'image/jpeg', quality);
-          };
-          tryCompress(INITIAL_QUALITY);
-        });
-      }
-
-      self.onmessage = async (event) => {
-        const { type, file } = event.data;
-        if (type === 'compress') {
-          try {
-            const originalSize = file.size;
-            const compressed = await compressToUnderMaxSize(file);
-            self.postMessage({ type: 'success', file: compressed, originalSize, compressedSize: compressed.size });
-          } catch (error) {
-            self.postMessage({ type: 'error', message: error.message || 'Compression failed' });
-          }
-        }
-      };
-    `;
-    const blob = new Blob([workerCode], { type: "application/javascript" });
-    return new Worker(URL.createObjectURL(blob));
-  } catch {
-    return null;
-  }
-}
 
 export default function ImageUpload({ onImageSelect, previewUrl, isLoading, onAnalyze }: ImageUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const isMobile = useIsMobile();
-  const mobileInputRef = useRef<HTMLInputElement>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const mobileInputRef = { current: null } as React.MutableRefObject<HTMLInputElement | null>;
 
   const disabled = isLoading || compressing;
 
@@ -131,11 +57,6 @@ export default function ImageUpload({ onImageSelect, previewUrl, isLoading, onAn
     [],
   );
 
-  useEffect(() => {
-    workerRef.current = createCompressionWorker();
-    return () => { workerRef.current?.terminate(); };
-  }, []);
-
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       setError(null);
@@ -145,51 +66,37 @@ export default function ImageUpload({ onImageSelect, previewUrl, isLoading, onAn
         setError("JPG, PNG, WEBP 형식만 지원합니다.");
         return;
       }
-      const maxSize = 1 * 1024 * 1024;
+      const maxSize = 3 * 1024 * 1024;
       if (file.size <= maxSize) { onImageSelect(file, URL.createObjectURL(file)); return; }
 
       setCompressing(true);
-      if (workerRef.current) {
-        workerRef.current.onmessage = (event: MessageEvent<CompressionResult | CompressionError>) => {
-          const { type } = event.data;
-          if (type === "success") {
-            const r = event.data as CompressionResult;
-            handleCompressionResult(r.file, URL.createObjectURL(r.file));
-          } else {
-            handleCompressionError((event.data as CompressionError).message);
-          }
+      const MAX_DIM = 768;
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        const tryCompress = (quality: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) { handleCompressionError("압축 실패"); return; }
+            if (blob.size <= maxSize || quality <= 0.3) {
+              const f = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+              handleCompressionResult(f, URL.createObjectURL(f));
+            } else { tryCompress(Math.round((quality - 0.1) * 10) / 10); }
+          }, "image/jpeg", quality);
         };
-        workerRef.current.onerror = () => handleCompressionError("압축 중 오류가 발생했습니다.");
-        workerRef.current.postMessage({ type: "compress", file });
-      } else {
-        const MAX_DIM = 768;
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > MAX_DIM || height > MAX_DIM) {
-            const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-            width = Math.round(width * ratio);
-            height = Math.round(height * ratio);
-          }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-          const tryCompress = (quality: number) => {
-            canvas.toBlob((blob) => {
-              if (!blob) { handleCompressionError("압축 실패"); return; }
-              if (blob.size <= maxSize || quality <= 0.3) {
-                const f = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
-                handleCompressionResult(f, URL.createObjectURL(f));
-              } else { tryCompress(Math.round((quality - 0.1) * 10) / 10); }
-            }, "image/jpeg", quality);
-          };
-          tryCompress(0.85);
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); handleCompressionError("이미지 로드 실패"); };
-        img.src = url;
-      }
+        tryCompress(0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); handleCompressionError("이미지 로드 실패"); };
+      img.src = url;
     },
     [onImageSelect, handleCompressionResult, handleCompressionError],
   );
