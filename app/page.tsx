@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import confetti from "canvas-confetti";
 import { useAppStore } from "@/store/useAppStore";
 import { trackAnalyzeClick, trackAnalyzeComplete } from "@/lib/analytics";
+import { streamFindCeleb, FindCelebError } from "@/lib/findCeleb";
 
 const ImageUpload = lazy(() => import("@/components/ImageUpload"));
 const CelebResult = lazy(() => import("@/components/CelebResult"));
@@ -87,38 +88,12 @@ function ErrorDisplay() {
     setError(null);
     setResults([]);
 
-    let completedCount = 0;
     try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-
-      const res = await fetch("/api/find-celeb", { method: "POST", body: formData });
-      if (!res.ok || !res.body) {
-        const data = await res.json();
-        setError(data.error ?? "오류가 발생했습니다.");
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let lineBuffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        lineBuffer += decoder.decode(value, { stream: true });
-        const lines = lineBuffer.split("\n");
-        lineBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const data = JSON.parse(line);
-          if (data.error) { setError(data.error); return; }
-          completedCount++;
-          useAppStore.getState().addResult(data);
-        }
-      }
-      if (completedCount > 0) trackAnalyzeComplete(completedCount);
-    } catch {
-      setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      const { count } = await streamFindCeleb(selectedFile, useAppStore.getState().addResult);
+      if (count > 0) trackAnalyzeComplete(count);
+    } catch (e) {
+      if (e instanceof FindCelebError) setError(e.message);
+      else setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -175,38 +150,12 @@ function UploadSection() {
     setError(null);
     setResults([]);
 
-    let completedCount = 0;
     try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-
-      const res = await fetch("/api/find-celeb", { method: "POST", body: formData });
-      if (!res.ok || !res.body) {
-        const data = await res.json();
-        setError(data.error ?? "오류가 발생했습니다.");
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let lineBuffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        lineBuffer += decoder.decode(value, { stream: true });
-        const lines = lineBuffer.split("\n");
-        lineBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const data = JSON.parse(line);
-          if (data.error) { setError(data.error); return; }
-          completedCount++;
-          useAppStore.getState().addResult(data);
-        }
-      }
-      if (completedCount > 0) trackAnalyzeComplete(completedCount);
-    } catch {
-      setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      const { count } = await streamFindCeleb(selectedFile, useAppStore.getState().addResult);
+      if (count > 0) trackAnalyzeComplete(count);
+    } catch (e) {
+      if (e instanceof FindCelebError) setError(e.message);
+      else setError("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }

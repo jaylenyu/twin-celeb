@@ -16,7 +16,7 @@
 
  - **분위기 기반 매칭** — 외모 특징이 아닌 전체적인 인상과 분위기로 매칭
  - **이미지 업로드** — 드래그 앤 드롭 (데스크톱) / 카메라·앨범 선택 (모바일)
- - **자동 압축 (Web Worker)** — 메인 스레드 차단을 방지하는 Web Worker 기반 이미지 압축
+ - **자동 압축** — 3MB / 768px 한도로 클라이언트에서 JPEG 반복 압축
  - **한국 + 할리우드** — 최소 각 1명씩 총 3명 결과 제공
  - **유사도 및 이유** — 닮음 퍼센트와 분위기 설명 제공
  - **결과 공유** — 업로드 사진 포함 이미지로 친구에게 공유
@@ -37,7 +37,7 @@
  ## 성능 최적화
 
  - **로딩 속도**: Next.js 최적화 (코드 스플리팅, 이미지 최적화, CSS 최적화)
- - **API 응답 속도**: Web Worker 기반 이미지 압축으로 API 토큰 절감
+ - **API 응답 속도**: 클라이언트 이미지 압축(최대 3MB · 768px)으로 API 토큰 절감
  - **사용자 반응성**: Zustand 상태 관리 + React.lazy/Suspense를 통한 동적 로딩
 
  ## 로컬 실행
@@ -77,18 +77,19 @@
  ├── page.tsx                   # 메인 페이지
  └── layout.tsx
  components/
- ├── ImageUpload.tsx            # 업로드 UI (Web Worker 압축)
+ ├── ImageUpload.tsx            # 업로드 UI (모바일/데스크톱)
  └── CelebResult.tsx            # 결과 카드 및 공유 기능
  lib/
  ├── claude.ts                  # Claude Vision API 연동
- └── analytics.ts               # Vercel Analytics 연동
+ ├── analytics.ts               # Vercel Analytics 연동
+ ├── uploadConfig.ts            # 업로드 한도/허용 MIME 등 공유 상수
+ ├── imageCompression.ts        # 클라이언트 캔버스 기반 JPEG 압축
+ └── findCeleb.ts               # NDJSON 스트리밍 클라이언트
  store/
  └── useAppStore.ts             # Zustand 상태 관리
  types/
  └── index.ts                   # Celebrity, FindCelebResponse 타입
  __tests__/                     # 테스트 코드
- workers/
- └── imageCompression.worker.ts # Web Worker 이미지 압축
  ```
 
  ## 환경 변수

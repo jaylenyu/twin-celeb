@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone, FileRejection } from "react-dropzone";
+import { compressImage } from "@/lib/imageCompression";
+import { ACCEPTED_MIME, isAcceptedMime } from "@/lib/uploadConfig";
 
 interface ImageUploadProps {
   onImageSelect: (file: File, previewUrl: string) => void;
@@ -10,9 +12,9 @@ interface ImageUploadProps {
   onAnalyze: () => void;
 }
 
-
-
-const ACCEPTED_TYPES = { "image/jpeg": [], "image/png": [], "image/webp": [] };
+const DROPZONE_ACCEPT = Object.fromEntries(ACCEPTED_MIME.map((m) => [m, []]));
+const ACCEPT_ATTR = ACCEPTED_MIME.join(",");
+const MIME_ERROR = "JPG, PNG, WEBP 형식만 지원합니다.";
 
 const SpinnerIcon = () => (
   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -33,78 +35,111 @@ function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
-    setIsMobile(mq.matches);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
   return isMobile;
 }
 
+interface PreviewCardProps {
+  previewUrl: string | null;
+  isMobile: boolean;
+  isDragActive: boolean;
+}
 
+function PreviewCard({ previewUrl, isMobile, isDragActive }: PreviewCardProps) {
+  if (previewUrl) {
+    return (
+      <div className="relative">
+        <img
+          src={previewUrl}
+          alt="업로드된 사진"
+          className={`w-full ${isMobile ? "h-52" : "h-56"} object-cover`}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 gap-3">
+        <div className="w-16 h-16 rounded-2xl bg-[#FBE9DB] flex items-center justify-center text-[#D97445]">
+          <PortraitIcon />
+        </div>
+        <p className="text-sm text-[#7D5840] text-center leading-relaxed">
+          사진을 선택해 주세요
+          <br />
+          <span className="text-xs text-[#B09278]">JPG · PNG · WEBP</span>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`p-10 text-center transition-colors ${
+        isDragActive ? "bg-[#FBE9DB]/80" : "hover:bg-white/70"
+      }`}
+    >
+      <div className="flex flex-col items-center gap-4">
+        <div
+          className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${
+            isDragActive ? "bg-[#E8924E]/15 text-[#D97445]" : "bg-[#FBE9DB] text-[#D97445]"
+          }`}
+        >
+          <PortraitIcon />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-[#1C0D07]">
+            {isDragActive ? "여기에 놓으세요" : "드래그하거나 클릭해서 업로드"}
+          </p>
+          <p className="text-xs text-[#B09278] mt-1">JPG · PNG · WEBP</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ImageUpload({ onImageSelect, previewUrl, isLoading, onAnalyze }: ImageUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const isMobile = useIsMobile();
-  const mobileInputRef = { current: null } as React.MutableRefObject<HTMLInputElement | null>;
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   const disabled = isLoading || compressing;
-
-  const handleCompressionResult = useCallback(
-    (file: File, url: string) => { onImageSelect(file, url); setCompressing(false); },
-    [onImageSelect],
-  );
-  const handleCompressionError = useCallback(
-    (message: string) => { setError(message); setCompressing(false); },
-    [],
-  );
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       setError(null);
       const file = files[0];
       if (!file) return;
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        setError("JPG, PNG, WEBP 형식만 지원합니다.");
+      if (!isAcceptedMime(file.type)) {
+        setError(MIME_ERROR);
         return;
       }
-      const maxSize = 3 * 1024 * 1024;
-      if (file.size <= maxSize) { onImageSelect(file, URL.createObjectURL(file)); return; }
-
       setCompressing(true);
-      const MAX_DIM = 768;
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > MAX_DIM || height > MAX_DIM) {
-          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width; canvas.height = height;
-        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-        const tryCompress = (quality: number) => {
-          canvas.toBlob((blob) => {
-            if (!blob) { handleCompressionError("압축 실패"); return; }
-            if (blob.size <= maxSize || quality <= 0.3) {
-              const f = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
-              handleCompressionResult(f, URL.createObjectURL(f));
-            } else { tryCompress(Math.round((quality - 0.1) * 10) / 10); }
-          }, "image/jpeg", quality);
-        };
-        tryCompress(0.85);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); handleCompressionError("이미지 로드 실패"); };
-      img.src = url;
+      try {
+        const result = await compressImage(file);
+        onImageSelect(result, URL.createObjectURL(result));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "이미지 처리 실패");
+      } finally {
+        setCompressing(false);
+      }
     },
-    [onImageSelect, handleCompressionResult, handleCompressionError],
+    [onImageSelect],
   );
 
   const onDrop = useCallback(
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       setError(null);
-      if (rejectedFiles.length > 0) { setError("JPG, PNG, WEBP 형식만 지원합니다."); return; }
+      if (rejectedFiles.length > 0) {
+        setError(MIME_ERROR);
+        return;
+      }
       if (acceptedFiles[0]) handleFiles(acceptedFiles);
     },
     [handleFiles],
@@ -112,136 +147,69 @@ export default function ImageUpload({ onImageSelect, previewUrl, isLoading, onAn
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: ACCEPTED_TYPES,
+    accept: DROPZONE_ACCEPT,
     multiple: false,
     disabled,
   });
 
   const analyzeLabel = isLoading ? "분석 중..." : "닮은 연예인 찾기";
 
-  /* ── Mobile ── */
-  if (isMobile) {
-    return (
-      <div className="flex flex-col items-center gap-4 w-full max-w-sm">
-        <input
-          ref={mobileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={(e) => e.target.files && handleFiles(e.target.files)}
-          disabled={disabled}
-        />
-
-        {/* Preview / placeholder card */}
-        <div className="w-full card-glass rounded-3xl overflow-hidden">
-          {previewUrl ? (
-            <div className="relative">
-              <img
-                src={previewUrl}
-                alt="업로드된 사진"
-                className="w-full h-52 object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 px-6 gap-3">
-              <div className="w-16 h-16 rounded-2xl bg-[#FBE9DB] flex items-center justify-center text-[#D97445]">
-                <PortraitIcon />
-              </div>
-              <p className="text-sm text-[#7D5840] text-center leading-relaxed">
-                사진을 선택해 주세요
-                <br />
-                <span className="text-xs text-[#B09278]">JPG · PNG · WEBP</span>
-              </p>
-            </div>
-          )}
-
-          {/* Select button inside card */}
-          <div className="px-4 pb-4 pt-3">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => mobileInputRef.current?.click()}
-              className="w-full py-2.5 text-sm border border-[#E8924E]/35 rounded-2xl text-[#7D5840] hover:bg-[#FBE9DB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer"
-            >
-              {compressing ? "압축 중..." : previewUrl ? "다시 선택" : "사진 선택"}
-            </button>
-          </div>
+  const cardContent = (
+    <div className="card-glass rounded-3xl overflow-hidden">
+      <PreviewCard previewUrl={previewUrl} isMobile={isMobile} isDragActive={isDragActive} />
+      {!isMobile && previewUrl && (
+        <div className="px-4 py-3">
+          <p className={`text-xs text-[#B09278] text-center ${disabled ? "invisible" : ""}`}>
+            클릭하거나 드래그해서 변경
+          </p>
         </div>
-
-        {error && <p className="text-xs text-[#B09278]">{error}</p>}
-
-        {previewUrl && (
+      )}
+      {isMobile && (
+        <div className="px-4 pb-4 pt-3">
           <button
-            onClick={onAnalyze}
+            type="button"
             disabled={disabled}
-            className="w-full py-4 bg-[#1C0D07] disabled:opacity-50 text-white text-sm font-bold rounded-2xl transition-all flex items-center justify-center gap-2 hover:bg-[#2D1810] active:scale-[0.98] shadow-lg shadow-black/15 cursor-pointer"
+            onClick={() => mobileInputRef.current?.click()}
+            className="w-full py-2.5 text-sm border border-[#E8924E]/35 rounded-2xl text-[#7D5840] hover:bg-[#FBE9DB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium cursor-pointer"
           >
-            {isLoading && <SpinnerIcon />}
-            {analyzeLabel}
+            {compressing ? "압축 중..." : previewUrl ? "다시 선택" : "사진 선택"}
           </button>
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
+    </div>
+  );
 
-  /* ── Desktop ── */
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-sm">
-      <div
-        {...getRootProps()}
-        className={`w-full rounded-3xl transition-all cursor-pointer overflow-hidden ${
-          disabled
-            ? "opacity-50 cursor-not-allowed"
-            : isDragActive
-              ? "ring-2 ring-[#D97445] ring-offset-2 ring-offset-transparent"
-              : ""
-        }`}
-      >
-        <input {...getInputProps()} />
+      {isMobile ? (
+        <>
+          <input
+            ref={mobileInputRef}
+            type="file"
+            accept={ACCEPT_ATTR}
+            className="hidden"
+            onChange={(e) => e.target.files && handleFiles(e.target.files)}
+            disabled={disabled}
+          />
+          <div className="w-full">{cardContent}</div>
+        </>
+      ) : (
+        <div
+          {...getRootProps()}
+          className={`w-full rounded-3xl transition-all cursor-pointer overflow-hidden ${
+            disabled
+              ? "opacity-50 cursor-not-allowed"
+              : isDragActive
+                ? "ring-2 ring-[#D97445] ring-offset-2 ring-offset-transparent"
+                : ""
+          }`}
+        >
+          <input {...getInputProps()} />
+          {cardContent}
+        </div>
+      )}
 
-        {previewUrl ? (
-          <div className="card-glass rounded-3xl overflow-hidden">
-            <div className="relative">
-              <img
-                src={previewUrl}
-                alt="업로드된 사진"
-                className="w-full h-56 object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            </div>
-            <div className="px-4 py-3">
-              <p className={`text-xs text-[#B09278] text-center ${disabled ? "invisible" : ""}`}>
-                클릭하거나 드래그해서 변경
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={`card-glass rounded-3xl p-10 text-center transition-colors ${
-              isDragActive ? "bg-[#FBE9DB]/80" : "hover:bg-white/70"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${
-                  isDragActive ? "bg-[#E8924E]/15 text-[#D97445]" : "bg-[#FBE9DB] text-[#D97445]"
-                }`}
-              >
-                <PortraitIcon />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#1C0D07]">
-                  {isDragActive ? "여기에 놓으세요" : "드래그하거나 클릭해서 업로드"}
-                </p>
-                <p className="text-xs text-[#B09278] mt-1">JPG · PNG · WEBP</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {compressing && <p className="text-xs text-[#B09278]">이미지 압축 중...</p>}
+      {!isMobile && compressing && <p className="text-xs text-[#B09278]">이미지 압축 중...</p>}
       {error && <p className="text-xs text-[#B09278]">{error}</p>}
 
       {previewUrl && (
