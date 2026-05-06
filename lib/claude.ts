@@ -66,8 +66,10 @@ export async function* streamCelebrityLookalike(
   
   const stream = anthropic.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    max_tokens: 512,
+    system: [
+      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+    ],
     messages: [
       {
         role: 'user',

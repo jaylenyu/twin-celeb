@@ -24,7 +24,7 @@ describe("compressImage", () => {
     expect(result).toBe(file);
   });
 
-  it("compresses oversized files to a JPEG below the limit", async () => {
+  it("compresses oversized files to a WebP below the limit", async () => {
     const file = makeFile(10 * 1024, "shot.png");
 
     let onloadHandler: (() => void) | null = null;
@@ -41,7 +41,7 @@ describe("compressImage", () => {
     vi.stubGlobal("Image", MockImage);
 
     const toBlob = vi.fn((cb: BlobCallback) => {
-      cb(new Blob([new Uint8Array(2 * 1024)], { type: "image/jpeg" }));
+      cb(new Blob([new Uint8Array(2 * 1024)], { type: "image/webp" }));
     });
     const drawImage = vi.fn();
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
@@ -57,8 +57,8 @@ describe("compressImage", () => {
     });
 
     const result = await compressImage(file, { maxBytes: 4 * 1024 });
-    expect(result.type).toBe("image/jpeg");
-    expect(result.name).toBe("shot.jpg");
+    expect(result.type).toBe("image/webp");
+    expect(result.name).toBe("shot.webp");
     expect(result.size).toBeLessThanOrEqual(4 * 1024);
     expect(toBlob).toHaveBeenCalled();
     expect(drawImage).toHaveBeenCalled();

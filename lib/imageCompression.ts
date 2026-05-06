@@ -1,4 +1,6 @@
 import {
+  COMPRESSED_EXT,
+  COMPRESSED_MIME,
   INITIAL_QUALITY,
   MAX_DIMENSION,
   MAX_IMAGE_BYTES,
@@ -53,14 +55,14 @@ export function compressImage(file: File, opts: CompressOptions = {}): Promise<F
               return;
             }
             if (blob.size <= maxBytes || quality <= minQ) {
-              const renamed = file.name.replace(/\.[^.]+$/, ".jpg");
-              resolve(new File([blob], renamed, { type: "image/jpeg" }));
+              const renamed = file.name.replace(/\.[^.]+$/, COMPRESSED_EXT);
+              resolve(new File([blob], renamed, { type: COMPRESSED_MIME }));
               return;
             }
             const next = Math.round((quality - step) * 100) / 100;
             tryCompress(next);
           },
-          "image/jpeg",
+          COMPRESSED_MIME,
           quality,
         );
       };
