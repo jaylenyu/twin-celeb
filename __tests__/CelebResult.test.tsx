@@ -41,7 +41,7 @@ describe('CelebResult', () => {
   });
 
   describe('rendering', () => {
-    it('should render Result title', () => {
+    it('should render header title', () => {
       render(
         <CelebResult
           celebrities={mockCelebrities}
@@ -49,7 +49,7 @@ describe('CelebResult', () => {
           isLoading={false}
         />
       );
-      expect(screen.getByText('Result')).toBeInTheDocument();
+      expect(screen.getByText('My Celebrity Match')).toBeInTheDocument();
     });
 
     it('should render all celebrity names', () => {
@@ -84,8 +84,8 @@ describe('CelebResult', () => {
           isLoading={false}
         />
       );
-      expect(screen.getByText('한국')).toBeInTheDocument();
-      expect(screen.getByText('할리우드')).toBeInTheDocument();
+      expect(screen.getByText(/한국/)).toBeInTheDocument();
+      expect(screen.getByText(/할리우드/)).toBeInTheDocument();
     });
 
     it('should render occupation and nameEn', () => {
@@ -196,8 +196,10 @@ describe('CelebResult', () => {
         />
       );
       await waitFor(() => {
-        expect(screen.getByText(/까지.*명이 결과를 공유했어요/)).toBeInTheDocument();
+        expect(screen.getByText('10명')).toBeInTheDocument();
       });
+      expect(screen.getByText(/지금까지/)).toBeInTheDocument();
+      expect(screen.getByText(/이 결과를 공유했어요/)).toBeInTheDocument();
     });
   });
 
@@ -210,7 +212,7 @@ describe('CelebResult', () => {
           isLoading={false}
         />
       );
-      expect(screen.getByText('Result')).toBeInTheDocument();
+      expect(screen.getByText('My Celebrity Match')).toBeInTheDocument();
     });
   });
 

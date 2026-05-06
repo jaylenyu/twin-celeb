@@ -125,7 +125,7 @@ describe('ImageUpload', () => {
           onAnalyze={mockOnAnalyze}
         />
       );
-      expect(screen.getByText('JPG, PNG, WEBP')).toBeInTheDocument();
+      expect(screen.getByText(/JPG.*PNG.*WEBP/)).toBeInTheDocument();
     });
 
     it('should render preview image when previewUrl is provided', () => {
